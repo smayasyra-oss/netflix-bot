@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 # ==================== الإعدادات الرئيسية ====================
-BOT_TOKEN = "8600844088:AAFMfgNnSypaN05fGvZaXM-H_8MtUftuQcM"
+BOT_TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
 ADMIN_ID = 7983029778  
 
 # ==================== إدارة قاعدة البيانات ====================
