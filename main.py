@@ -167,4 +167,35 @@ async def add_email_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not text:
             await update.message.reply_text(
-                "⚠️ يرجى إرسال الإيميلات وكلمات المرور بالطريقة التالية (كل حساب في سطر
+                """⚠️ يرجى إرسال الإيميلات وكلمات المرور بالطريقة التالية:
+
+/add
+email1@outlook.com password123
+email2@gmail.com password456""", 
+                parse_mode="Markdown"
+            )
+            return
+
+        lines = text.split('\n')
+        added_count = 0
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            parts = re.split(r'[\s:]+', line)
+            if len(parts) >= 2:
+                email_addr = parts[0].lower().strip()
+                password = parts[1].strip()
+                
+                if "@" in email_addr and "." in email_addr:
+                    if add_account(email_addr, password):
+                        added_count += 1
+
+        await update.message.reply_text(
+            f"✅ تمت العملية بنجاح!\nتم إضافة وتحديث `{added_count}` حساباً في قاعدة البيانات.", 
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ حدث خطأ أثناء الإضافة: `{str(e)}`", parse_mode="Markdown")
