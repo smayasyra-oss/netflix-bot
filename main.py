@@ -5,6 +5,9 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboard
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
+# إعداد السجلات لمتابعة حالة البوت في منصة Render
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 # إعداد خادم ويب خفيف لضمان عدم إغلاق الخدمة على Render
 web_app = Flask(__name__)
 
@@ -16,7 +19,7 @@ def run_web():
     web_app.run(host="0.0.0.0", port=8080)
 
 # تشغيل خادم الويب في خلفية منفصلة
-threading.Thread(target=run_web).start()
+threading.Thread(target=run_web, daemon=True).start()
 
 # التوكن ورقم الأدمن الخاص بك
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
@@ -132,7 +135,6 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
-    # التعامل مع طلب كود السكن (نتفليكس)
     if context.user_data.get('waiting_for_netflix_household_email'):
         user = update.effective_user
         netflix_email = text
@@ -160,7 +162,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_netflix_household_email'] = False
         return
 
-    # التعامل مع طلب كود تسجيل الدخول لأي منصة
     if context.user_data.get('waiting_for_login_code_email'):
         user = update.effective_user
         platform_name = context.user_data.get('login_code_platform', 'منصة رقمية')
@@ -190,7 +191,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_login_code_email'] = False
         return
 
-    # باقي الأزرار النصية
     if text == "🛒 الاشتراكات الفردية":
         subs_keyboard = [
             [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
@@ -240,7 +240,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(support_text, parse_mode="Markdown")
 
-# دالة لتوليد أزرار اختيار المنصات التفاعلية مع وضع الصح ✅
 def get_selection_keyboard(selected_list, target_count):
     platforms = [
         ("netflix", "🎬 Netflix - نتفليكس"),
@@ -266,7 +265,6 @@ def get_selection_keyboard(selected_list, target_count):
     keyboard.append([InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_bundles")])
     return InlineKeyboardMarkup(keyboard)
 
-# التعامل مع الأزرار التفاعلية وأزرار الرجوع
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -300,7 +298,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # معالجة طلب الأكواد الرئيسية
     elif data == "code_login_menu":
         kb = [
             [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="login_code_netflix")],
@@ -360,7 +357,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # 1. الاشتراكات الفردية
     elif data.startswith("sub_"):
         sub_type = data.replace("sub_", "")
         details_map = {
@@ -389,7 +385,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    # 2. عروض التوفير المشتركة
     elif data.startswith("bundle_init_"):
         count = int(data.replace("bundle_init_", ""))
         context.user_data['bundle_target_count'] = count
@@ -570,7 +565,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
         context.user_data['waiting_for_receipt'] = True
 
-# استقبال صور الإيصالات للأدمن مع تضمين أمر الرد السريع
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_receipt'):
         current_sub = context.user_data.get('current_sub', 'default')
@@ -618,7 +612,8 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     
     print("962ElStore Bot is running...")
-    app.run_polling()
+    # استخدام drop_pending_updates=True لتفريغ أي رسائل معلقة قديم وتفعيل البوت فوراً
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
