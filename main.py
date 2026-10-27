@@ -1,248 +1,268 @@
-from email import message_from_bytes
-import imaplib
-import os
-import re
+import logging
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
-from flask import Flask, jsonify, request
-import requests
 
-app = Flask(__name__)
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+CLIQ_INFO = "0776453875 (962ElStore)"
 
-# ==================== الإعدادات الرئيسية ====================
-INFOBIP_API_KEY = os.getenv(
-    "INFOBIP_API_KEY", "مفتاح_الاب_ايكي_هنا"
-)
-INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "jrnrkv.api.infobip.com")
-INFOBIP_SENDER = os.getenv(
-    "INFOBIP_SENDER", ""
-)  # رقم المرسل التجريبي من إنفوبيب إذا طُلب
-ADMIN_PHONE = os.getenv("ADMIN_PHONE", "962XXXXXXXXX")  # رقم هاتفك بدون +
-
-
-# ==================== إدارة قاعدة البيانات ====================
-def init_db():
-  try:
-    conn = sqlite3.connect("netflix.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS accounts (
-                email TEXT PRIMARY KEY,
-                password TEXT NOT NULL,
-                imap_server TEXT DEFAULT 'imap.gmail.com'
-            )
-        """)
-    conn.commit()
-    conn.close()
-  except Exception as e:
-    print(f"DB Init Error: {e}")
-
-
-def add_account(email_addr, password):
-  email_addr = email_addr.lower().strip()
-  if (
-      "outlook" in email_addr
-      or "hotmail" in email_addr
-      or "live" in email_addr
-  ):
-    imap_server = "imap-mail.outlook.com"
-  else:
-    imap_server = "imap.gmail.com"
-
-  try:
-    conn = sqlite3.connect("netflix.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR REPLACE INTO accounts VALUES (?, ?, ?)",
-        (email_addr, password, imap_server),
+# تعليمات تسجيل الدخول الخاصة بكل منصة
+LOGIN_INSTRUCTIONS = {
+    "netflix": (
+        "🎬 **تعليمات تسجيل الدخول لـ Netflix (4K):**\n"
+        "1. قم بتسجيل الدخول بالبريد وكلمة المرور المرسلة.\n"
+        "2. ادخل حصرياً إلى **البروفايل المخصص لك** فقط.\n"
+        "3. يمنع منعاً باتاً تغيير كلمة المرور أو إعدادات البروفايل لضمان استمرار عمل الضمان."
+    ),
+    "shahid": (
+        "📺 **تعليمات تسجيل الدخول لـ Shahid VIP:**\n"
+        "1. سجل الدخول بالحساب المرسل.\n"
+        "2. اختر البروفايل الخاص بك فقط ولا تدخل بروفايلات الآخرين.\n"
+        "3. حافظ على خصوصية الحساب واستمتع بالمشاهدة."
+    ),
+    "osn": (
+        "🎥 **تعليمات تسجيل الدخول لـ OSN+:**\n"
+        "1. افتح تطبيق OSN+ وسجل الدخول بالبيانات.\n"
+        "2. التزم بالبروفايل المخصص لك لضمان استقرار الخدمة."
+    ),
+    "disney": (
+        "✨ **تعليمات تسجيل الدخول لـ Disney+:**\n"
+        "1. سجل الدخول عبر التطبيق أو الموقع.\n"
+        "2. توجه إلى بروفايلك الخاص واستمتع بأضخم الأعمال بجودة عالية."
+    ),
+    "noor": (
+        "🌙 **تعليمات تسجيل الدخول لـ Noor Play:**\n"
+        "1. قم بتسجيل الدخول بالبيانات المرسلة.\n"
+        "2. اختر البروفايل المخصص لك ولا تقم بتعديل إعدادات الحساب."
+    ),
+    "tod": (
+        "⚽ **تعليمات تسجيل الدخول لـ TOD:**\n"
+        "1. الحساب يعمل على **جهازين FHD** في نفس الوقت كحد أقصى.\n"
+        "2. لا تتجاوز الحد المسموح للأجهزة حتى لا يتوقف الحساب.\n"
+        "مشاهدة ممتعة للمباريات والأفلام!"
     )
-    conn.commit()
-    conn.close()
-    return True
-  except Exception as e:
-    print(f"Add Account Error: {e}")
-    return False
+}
 
+# القائمة الرئيسية الثابتة
+def get_main_menu():
+    keyboard = [
+        [KeyboardButton("🛒 الاشتراكات المتوفرة"), KeyboardButton("🔑 طلب كود")],
+        [KeyboardButton("🛠 التواصل مع الدعم")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-def get_account(email_addr):
-  try:
-    conn = sqlite3.connect("netflix.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT password, imap_server FROM accounts WHERE email = ?",
-        (email_addr.lower().strip(),),
+# أمر /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    welcome_text = (
+        f"أهلاً بك في متجر **962ElStore** للتسوق الرقمي[span_0](start_span)[span_0](end_span)!\n\n"
+        f"🆔 رقمك التعريفي: `{user.id}`\n"
+        f"👤 الاسم: {user.full_name}\n\n"
+        f"اختر من القائمة أدناه للبدء:"
     )
-    res = cursor.fetchone()
-    conn.close()
-    return res
-  except Exception:
-    return None
+    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=get_main_menu())
 
+# التعامل مع الأزرار النصية الرئيسية
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    
+    if text == "🛒 الاشتراكات المتوفرة":
+        subs_keyboard = [
+            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
+            [InlineKeyboardButton("📺 Shahid VIP - شاهد", callback_data="sub_shahid")],
+            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
+            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
+            [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
+            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
+        ]
+        await update.message.reply_text(
+            "📦 **قسم الاشتراكات الرقمية:**\nاختر المنصة التي ترغب بالاشتراك بها:",
+            reply_markup=InlineKeyboardMarkup(subs_keyboard),
+            parse_mode="Markdown"
+        )
+        
+    elif text == "🔑 طلب كود":
+        await update.message.reply_text(
+            "🔑 **قسم طلب الأكواد:**\n\n"
+            "إذا قمت بالدفع وتحتاج إلى استلام كود التفعيل أو التحقق الخاص بحسابك، يرجى تزويدنا برقم الطلب أو التواصل مباشرة مع الدعم الفني لتسليمك الكود فوراً."
+        )
+        
+    elif text == "🛠 التواصل مع الدعم":
+        await update.message.reply_text("💬 للدعم الفني والمتابعة بعد الشراء: @YourSupportUsername")
 
-# ==================== إرسال رسالة عبر Infobip WhatsApp ====================
-def send_whatsapp_message(to_phone, text):
-  url = f"https://{INFOBIP_BASE_URL}/whatsapp/1/message/text"
-  headers = {
-      "Authorization": f"App {INFOBIP_API_KEY}",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-  }
+# التعامل مع الأزرار التفاعلية وأزرار الرجوع
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
-  payload = {"to": to_phone, "content": {"text": text}}
-  if INFOBIP_SENDER:
-    payload["from"] = INFOBIP_SENDER
+    if data == "back_to_subs":
+        subs_keyboard = [
+            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
+            [InlineKeyboardButton("📺 Shahid VIP - شاهد", callback_data="sub_shahid")],
+            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
+            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
+            [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
+            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
+        ]
+        await query.message.edit_text(
+            "📦 **قسم الاشتراكات الرقمية:**\nاختر المنصة التي ترغب بالاشتراك بها:",
+            reply_markup=InlineKeyboardMarkup(subs_keyboard),
+            parse_mode="Markdown"
+        )
 
-  try:
-    response = requests.post(url, json=payload, headers=headers, timeout=10)
-    print(f"Infobip Response: {response.text}")
-  except Exception as e:
-    print(f"Infobip Send Error: {e}")
+    # 1. نتفليكس
+    elif data == "sub_netflix":
+        text = "🎬 **اشتراك Netflix - جودة 4K**\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_netflix_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_netflix_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_netflix_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_netflix_1y")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
+    # 2. شاهد
+    elif data == "sub_shahid":
+        text = "📺 **اشتراك Shahid VIP - شاهد**\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_shahid_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_shahid_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_shahid_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_shahid_1y")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-# ==================== جلب الكود من أحدث رسالة ====================
-def get_netflix_code_by_type(email_addr, password, imap_server, code_type):
-  try:
-    mail = imaplib.IMAP4_SSL(imap_server, 993)
-    mail.login(email_addr, password)
-    mail.select("inbox")
+    # 3. أوس إن
+    elif data == "sub_osn":
+        text = "🎥 **اشتراك OSN+ - أوس إن**\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_osn_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_osn_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_osn_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_osn_1y")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    status, messages = mail.search(None, '(FROM "netflix")')
-    if status != "OK" or not messages[0]:
-      mail.logout()
-      return "⚠️ لم يتم العثور على أي رسائل من نتفليكس لهذا الإيميل."
+    # 4. ديزني
+    elif data == "sub_disney":
+        text = "✨ **اشتراك Disney+ - ديزني**\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_disney_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_disney_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_disney_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_disney_1y")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    email_ids = messages[0].split()
-    latest_id = email_ids[-1]
+    # 5. نور بلاي
+    elif data == "sub_noor":
+        text = "🌙 **اشتراك Noor Play - نور بلاي**\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_noor_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_noor_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_noor_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_noor_1y")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    status, msg_data = mail.fetch(latest_id, "(RFC822)")
-    html_content = ""
-    text_content = ""
+    # 6. تود
+    elif data == "sub_tod":
+        text = "⚽ **اشتراك TOD - تود (رياضة وترفيه)**\n(حساب جاهز - يعمل على جهازين FHD)[span_1](start_span)[span_1](end_span)\n\nاختر المدة المطلوبة:"
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد - جهازين FHD (6 JD)", callback_data="pkg_tod_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر - جهازين FHD (9 JD)", callback_data="pkg_tod_3m")],
+            [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_subs")]
+        ]
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    for response in msg_data:
-      if isinstance(response, tuple):
-        msg = email.message_from_bytes(response[1])
-        if msg.is_multipart():
-          for part in msg.walk():
-            ct = part.get_content_type()
-            if ct == "text/html":
-              html_content = part.get_payload(decode=True).decode(
-                  errors="ignore"
-              )
-            elif ct == "text/plain":
-              text_content = part.get_payload(decode=True).decode(
-                  errors="ignore"
-              )
+    # ملخص الباقة وزر الشراء
+    elif data.startswith("pkg_"):
+        parts = data.split("_")
+        sub_type = parts[1]
+        duration = parts[2]
+
+        # حفظ المنصة المختارة في ذاكرة المستخدم لربطها لاحقاً عند إرسال الإيصال
+        context.user_data['current_sub'] = sub_type
+
+        if sub_type == "tod":
+            price = "6 دنانير" if duration == "1m" else "9 دنانير"
         else:
-          html_content = msg.get_payload(decode=True).decode(errors="ignore")
+            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
+            price = prices.get(duration, "حسب الباقة")
 
-    mail.logout()
+        summary_text = (
+            f"🛒 **ملخص طلب الاشتراك**\n\n"
+            f"📌 الباقة المختارة جاهزة للتفعيل\n"
+            f"💵 **السعر الإجمالي:** {price}\n\n"
+            f"اضغط على زر **'شراء'** أدناه لإتمام الدفع أو تراجع للوراء:"
+        )
+        
+        buy_keyboard = [
+            [InlineKeyboardButton("💳 شراء", callback_data=f"buy_{sub_type}_{duration}")],
+            [InlineKeyboardButton("🔙 رجوع لاختيار الباقات", callback_data=f"sub_{sub_type}")]
+        ]
+        await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard), parse_mode="Markdown")
 
-    if code_type == "household":
-      code_match = re.search(r"\b\d{4}\b", text_content)
-      if code_match:
-        return f"🔑 كود السكن (من أحدث رسالة):\n{code_match.group(0)}"
+    # معلومات كليك وزر الشراء النهائي
+    elif data.startswith("buy_"):
+        parts = data.split("_")
+        sub_type = parts[1]
+        duration = parts[2]
 
-      urls = re.findall(r'href="(https://[^\"]*netflix[^\"]*)"', html_content)
-      if urls:
-        valid_url = urls[0]
-        for u in urls:
-          if any(
-              k in u for k in ["account", "travel", "pin", "get-code", "cl", "common"]
-          ):
-            valid_url = u
-            break
-        return f"🔗 رابط كود السكن (من أحدث رسالة):\n{valid_url}"
-
-    elif code_type == "signin":
-      code_match = re.search(r"\b\d{4,6}\b", text_content)
-      if code_match:
-        return f"🔐 كود تسجيل الدخول (من أحدث رسالة):\n{code_match.group(0)}"
-      else:
-        return "ℹ️ أحدث رسالة لا تحتوي على رقم كود واضح."
-
-    return "ℹ️ لم يتم التعرف على الطلب."
-
-  except Exception as e:
-    return f"❌ خطأ في الاتصال بالبريد:\n{str(e)}"
-
-
-# ==================== مسار الويب (Webhook) لاستقبال رسائل Infobip ====================
-@app.route("/webhook", methods=["POST"])
-def receive_message():
-  data = request.get_json()
-  print(f"Received Webhook: {data}")
-  try:
-    if "results" in data:
-      for result in data["results"]:
-        sender_phone = result.get("from")
-        msg_body = result.get("text", "").strip()
-
-        if not sender_phone or not msg_body:
-          continue
-
-        # التعامل مع أمر الإضافة /add
-        if msg_body.startswith("/add"):
-          if sender_phone != ADMIN_PHONE:
-            send_whatsapp_message(
-                sender_phone, "❌ هذا الأمر مخصص للأدمن فقط."
-            )
-            return jsonify({"status": "success"}), 200
-
-          lines = msg_body.split("\n")[1:]
-          added_count = 0
-          for line in lines:
-            parts = re.split(r"[\s:]+", line.strip())
-            if len(parts) >= 2:
-              if add_account(parts[0], parts[1]):
-                added_count += 1
-          send_whatsapp_message(
-              sender_phone,
-              f"✅ تمت الإضافة بنجاح!\nتم تحديث {added_count} حساباً.",
-          )
-          return jsonify({"status": "success"}), 200
-
-        # التعامل مع إرسال الإيميل
-        if "@" in msg_body and "." in msg_body:
-          email_match = re.search(
-              r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", msg_body
-          )
-          if email_match:
-            target_email = email_match.group(0).lower()
-            account_data = get_account(target_email)
-            if account_data:
-              if "signin" in msg_body.lower():
-                res = get_netflix_code_by_type(
-                    target_email, account_data[0], account_data[1], "signin"
-                )
-              else:
-                res = get_netflix_code_by_type(
-                    target_email, account_data[0], account_data[1], "household"
-                )
-              send_whatsapp_message(
-                  sender_phone, f"📧 البريد: {target_email}\n\n{res}"
-              )
-            else:
-              send_whatsapp_message(
-                  sender_phone, "❌ هذا الإيميل غير مسجل في النظام."
-              )
+        if sub_type == "tod":
+            price = "6 دنانير" if duration == "1m" else "9 دنانير"
         else:
-          send_whatsapp_message(
-              sender_phone,
-              "مرحباً! 🎬\nأرسل الإيميل مباشرة لسحب كود نتفليكس، أو أرسل"
-              " الإيميل متبوعاً بـ signin لكود تسجيل الدخول.",
-          )
+            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
+            price = prices.get(duration, "حسب الباقة")
 
-  except Exception as e:
-    print(f"Webhook Error: {e}")
+        checkout_text = (
+            f"💳 **معلومات الدفع عبر كليك (CliQ)**\n\n"
+            f"🔹 **رقم/حساب كليك:**\n`{CLIQ_INFO}`\n\n"
+            f"💵 **المطلوب تحويله:** {price}\n\n"
+            f"📸 **الخطوة الأخيرة:** قم بتحويل المبلغ، ثم **أرسل صورة (سكرين شوت) للإيصال** هنا في الشات وسنقوم بتفعيل طلبك فوراً!"
+        )
+        
+        back_keyboard = [
+            [InlineKeyboardButton("🔙 رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
+        ]
+        await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
+        context.user_data['waiting_for_receipt'] = True
 
-  return jsonify({"status": "success"}), 200
+# استقبال صور الإيصالات وإرسال التعليمات بناءً على المنصة
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get('waiting_for_receipt'):
+        current_sub = context.user_data.get('current_sub', 'netflix')
+        instructions = LOGIN_INSTRUCTIONS.get(current_sub, "يرجى الالتزام بسياسة الاستخدام لضمان استمرار الحساب.")
 
+        await update.message.reply_text(
+            f"✅ **تم استلام صورة الإيصال بنجاح!**\n"
+            f"شكراً لك لاختيارك متجر 962ElStore.\n\n"
+            f"👤 **بيانات الحساب الخاص بك:**\n"
+            f"`البريد: [سيتم إرساله من الأدمن]`\n"
+            f"`كلمة المرور: [سيتم إرسالها من الأدمن]`\n\n"
+            f"{instructions}",
+            parse_mode="Markdown"
+        )
+        context.user_data['waiting_for_receipt'] = False
+    else:
+        await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
 
-@app.route("/", methods=["GET"])
-def home():
-  return "Infobip WhatsApp Bot Server is Running!", 200
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    
+    print("962ElStore Bot is running...")
+    app.run_polling()
 
-
-if __name__ == "__main__":
-  init_db()
-  port = int(os.getenv("PORT", 10000))
-  app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    main()
