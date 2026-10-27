@@ -1,14 +1,15 @@
 import logging
 import threading
+import time
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
-# إعداد السجلات لمتابعة حالة البوت في منصة Render
+# إعداد السجلات لمتابعة حالة البوت
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# إعداد خادم ويب خفيف لضمان عدم إغلاق الخدمة على Render
+# إعداد خادم ويب خفيف لضمان استمرار عمل الخدمة على Render
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -603,17 +604,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
 
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("reply", admin_reply))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    
-    print("962ElStore Bot is running...")
-    # استخدام drop_pending_updates=True لتفريغ أي رسائل معلقة قديم وتفعيل البوت فوراً
-    app.run_polling(drop_pending_updates=True)
+    while True:
+        try:
+            app = ApplicationBuilder().token(TOKEN).build()
+            
+            app.add_handler(CommandHandler("start", start))
+            app.add_handler(CommandHandler("reply", admin_reply))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+            app.add_handler(CallbackQueryHandler(button_handler))
+            app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+            
+            print("962ElStore Bot is running with Auto-Reconnect...")
+            app.run_polling(drop_pending_updates=True)
+        except Exception as e:
+            print(f"Bot crashed with error: {e}. Restarting in 5 seconds...")
+            time.sleep(5)
 
 if __name__ == '__main__':
     main()
