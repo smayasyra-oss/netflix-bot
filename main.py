@@ -126,13 +126,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif text == "🔥 عروض التوفير الكبرى":
         bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً", callback_data="bundle_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات", callback_data="bundle_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (الباكج الشامل)", callback_data="bundle_4")]
+            [InlineKeyboardButton("👥 عرض منصتين معاً (4 JD)", callback_data="bundle_init_2")],
+            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (5 JD)", callback_data="bundle_init_3")],
+            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
         ]
         await update.message.reply_text(
             "🔥 **عروض التوفير الكبرى - 962ElStore**\n\n"
-            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر العرض المناسب:",
+            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
             reply_markup=InlineKeyboardMarkup(bundles_keyboard),
             parse_mode="Markdown"
         )
@@ -151,6 +151,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"نحن في خدمتكم على مدار الساعة!"
         )
         await update.message.reply_text(support_text, parse_mode="Markdown")
+
+# دالة لتوليد أزرار اختيار المنصات التفاعلية مع وضع الصح ✅
+def get_selection_keyboard(selected_list, target_count):
+    platforms = [
+        ("netflix", "🎬 Netflix - نتفليكس"),
+        ("shahid", "📺 Shahid VIP - شاهد"),
+        ("osn", "🎥 OSN+ - أوس إن"),
+        ("disney", "✨ Disney+ - ديزني"),
+        ("noor", "🌙 Noor Play - نور بلاي")
+    ]
+    
+    keyboard = []
+    for key, name in platforms:
+        # إذا كانت المنصة مختارة، نضيف بجانبها علامة الصح ✅
+        if key in selected_list:
+            btn_text = f"✅ {name}"
+            cb_data = f"unsel_{key}"
+        else:
+            btn_text = name
+            cb_data = f"sel_{key}"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=cb_data)])
+    
+    # إذا وصل العميل للعدد المطلوب من الاختيارات، يظهر له زر المتابعة لاختيار المدة
+    if len(selected_list) == target_count:
+        keyboard.append([InlineKeyboardButton("➡️ متابعة لاختيار المدة", callback_data="proceed_to_duration")])
+    
+    keyboard.append([InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_bundles")])
+    return InlineKeyboardMarkup(keyboard)
 
 # التعامل مع الأزرار التفاعلية وأزرار الرجوع
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -175,162 +203,125 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "back_to_bundles":
         bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً", callback_data="bundle_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات", callback_data="bundle_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (الباكج الشامل)", callback_data="bundle_4")]
+            [InlineKeyboardButton("👥 عرض منصتين معاً (4 JD)", callback_data="bundle_init_2")],
+            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (5 JD)", callback_data="bundle_init_3")],
+            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
         ]
         await query.message.edit_text(
             "🔥 **عروض التوفير الكبرى - 962ElStore**\n\n"
-            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر العرض المناسب:",
+            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
             reply_markup=InlineKeyboardMarkup(bundles_keyboard),
             parse_mode="Markdown"
         )
 
     # 1. الاشتراكات الفردية
-    elif data == "sub_netflix":
-        text = "🎬 **اشتراك Netflix - جودة 4K (بروفايل خاص - جهاز واحد)**\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_netflix_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_netflix_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_netflix_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_netflix_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "sub_shahid":
-        text = "📺 **اشتراك Shahid VIP - شاهد (جهاز واحد)**\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_shahid_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_shahid_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_shahid_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_shahid_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "sub_osn":
-        text = "🎥 **اشتراك OSN+ - أوس إن (جهاز واحد)**\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_osn_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_osn_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_osn_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_osn_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "sub_disney":
-        text = "✨ **اشتراك Disney+ - ديزني (جهاز واحد)**\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_disney_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_disney_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_disney_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_disney_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "sub_noor":
-        text = "🌙 **اشتراك Noor Play - نور بلاي (جهاز واحد)**\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_noor_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_noor_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_noor_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_noor_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "sub_tod":
-        text = "⚽ **اشتراك TOD - تود (رياضة وترفيه)**\n(حساب جاهز - يعمل على جهازين FHD)[span_9](start_span)[span_9](end_span)\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد - جهازين FHD (6 JD)", callback_data="pkg_tod_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر - جهازين FHD (9 JD)", callback_data="pkg_tod_3m")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    # 2. خطوة اختيار المنصات لعروض التوفير
-    elif data == "bundle_2":
-        text = "👥 **عرض منصتين معاً**\nاختر المنصتين اللتين ترغب بهما:"
-        kb = [
-            [InlineKeyboardButton("🎬 نتفليكس + 📺 شاهد", callback_data="b2_sel_net_shahid")],
-            [InlineKeyboardButton("🎬 نتفليكس + 🎥 أوس إن", callback_data="b2_sel_net_osn")],
-            [InlineKeyboardButton("🎬 نتفليكس + ✨ ديزني", callback_data="b2_sel_net_disney")],
-            [InlineKeyboardButton("🎬 نتفليكس + 🌙 نور بلاي", callback_data="b2_sel_net_noor")],
-            [InlineKeyboardButton("📺 شاهد + 🎥 أوس إن", callback_data="b2_sel_shahid_osn")],
-            [InlineKeyboardButton("📺 شاهد + ✨ ديزني", callback_data="b2_sel_shahid_disney")],
-            [InlineKeyboardButton("⬅️ رجوع للعروض", callback_data="back_to_bundles")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "bundle_3":
-        text = "⭐ **عرض الـ 3 منصات**\nاختر الـ 3 منصات التي ترغب بها:"
-        kb = [
-            [InlineKeyboardButton("🎬 نتفليكس + 📺 شاهد + 🎥 أوس إن", callback_data="b3_sel_1")],
-            [InlineKeyboardButton("🎬 نتفليكس + 📺 شاهد + ✨ ديزني", callback_data="b3_sel_2")],
-            [InlineKeyboardButton("🎬 نتفليكس + 🎥 أوس إن + ✨ ديزني", callback_data="b3_sel_3")],
-            [InlineKeyboardButton("📺 شاهد + 🎥 أوس إن + ✨ ديزني", callback_data="b3_sel_4")],
-            [InlineKeyboardButton("⬅️ رجوع للعروض", callback_data="back_to_bundles")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    elif data == "bundle_4":
-        text = "💎 **عرض الـ 4 منصات معاً (الباكج الشامل)**\nالمنصات المشمولة: نتفليكس + شاهد + أوس إن + ديزني\n\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b4_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b4_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_b4_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (35 JD)", callback_data="pkg_b4_1y")],
-            [InlineKeyboardButton("⬅️ رجوع للعروض", callback_data="back_to_bundles")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-
-    # معالجة تفكيك اختيار المنصتين
-    elif data.startswith("b2_sel_"):
-        comb_map = {
-            "net_shahid": "نتفليكس + شاهد",
-            "net_osn": "نتفليكس + أوس إن",
-            "net_disney": "نتفليكس + ديزني",
-            "net_noor": "نتفليكس + نور بلاي",
-            "shahid_osn": "شاهد + أوس إن",
-            "shahid_disney": "شاهد + ديزني"
+    elif data.startswith("sub_"):
+        sub_type = data.replace("sub_", "")
+        details_map = {
+            "netflix": ("🎬 اشتراك Netflix - جودة 4K (بروفايل خاص - جهاز واحد)", "pkg_netflix"),
+            "shahid": ("📺 اشتراك Shahid VIP - شاهد (جهاز واحد)", "pkg_shahid"),
+            "osn": ("🎥 اشتراك OSN+ - أوس إن (جهاز واحد)", "pkg_osn"),
+            "disney": ("✨ اشتراك Disney+ - ديزني (جهاز واحد)", "pkg_disney"),
+            "noor": ("🌙 اشتراك Noor Play - نور بلاي (جهاز واحد)", "pkg_noor"),
+            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod")
         }
-        comb_key = data.replace("b2_sel_", "")
-        comb_name = comb_map.get(comb_key, "منصتين")
-        context.user_data['selected_bundle_items'] = comb_name
+        title, prefix = details_map[sub_type]
+        
+        if sub_type == "tod":
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data=f"{prefix}_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (9 JD)", callback_data=f"{prefix}_3m")],
+                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
+            ]
+        else:
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data=f"{prefix}_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data=f"{prefix}_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_ext_6m" if False else f"{prefix}_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data=f"{prefix}_1y")],
+                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
+            ]
+        await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-        text = f"👥 **عرض منصتين ({comb_name})**\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (4 JD)", callback_data="pkg_b2_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (8 JD)", callback_data="pkg_b2_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (15 JD)", callback_data="pkg_b2_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (25 JD)", callback_data="pkg_b2_1y")],
-            [InlineKeyboardButton("⬅️ رجوع لاختيار المنصات", callback_data="bundle_2")]
-        ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    # 2. بدء اختيار العروض المشتركة
+    elif data.startswith("bundle_init_"):
+        count = int(data.replace("bundle_init_", ""))
+        context.user_data['bundle_target_count'] = count
+        context.user_data['selected_platforms'] = []
+        context.user_data['bundle_type'] = f"b{count}"
 
-    # معالجة تفكيك اختيار الـ 3 منصات
-    elif data.startswith("b3_sel_"):
-        b3_map = {
-            "1": "نتفليكس + شاهد + أوس إن",
-            "2": "نتفليكس + شاهد + ديزني",
-            "3": "نتفليكس + أوس إن + ديزني",
-            "4": "شاهد + أوس إن + ديزني"
-        }
-        b3_key = data.replace("b3_sel_", "")
-        b3_name = b3_map.get(b3_key, "3 منصات")
-        context.user_data['selected_bundle_items'] = b3_name
+        text = (
+            f"🎯 **اختر {count} منصات** تفضلها من القائمة أدناه:\n"
+            f"(كلما تضغط على منصة سيتم تفعيلها بـ ✅، وعند إتمام اختيارك سيظهر زر المتابعة)"
+        )
+        kb = get_selection_keyboard([], count)
+        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
 
-        text = f"⭐ **عرض الـ 3 منصات ({b3_name})**\nاختر المدة المطلوبة:"
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b3_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (10 JD)", callback_data="pkg_b3_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (18 JD)", callback_data="pkg_b3_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (30 JD)", callback_data="pkg_b3_1y")],
-            [InlineKeyboardButton("⬅️ رجوع لاختيار المنصات", callback_data="bundle_3")]
-        ]
+    # اختيار منصة (إضافة علامة الصح)
+    elif data.startswith("sel_"):
+        p_key = data.replace("sel_", "")
+        selected = context.user_data.get('selected_platforms', [])
+        target = context.user_data.get('bundle_target_count', 2)
+
+        if len(selected) < target and p_key not in selected:
+            selected.append(p_key)
+            context.user_data['selected_platforms'] = selected
+
+        text = (
+            f"🎯 **اختر {target} منصات** تفضلها من القائمة أدناه:\n"
+            f"تم اختيار ({len(selected)} من {target})"
+        )
+        kb = get_selection_keyboard(selected, target)
+        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
+
+    # إلغاء اختيار منصة (إزالة علامة الصح)
+    elif data.startswith("unsel_"):
+        p_key = data.replace("unsel_", "")
+        selected = context.user_data.get('selected_platforms', [])
+        target = context.user_data.get('bundle_target_count', 2)
+
+        if p_key in selected:
+            selected.remove(p_key)
+            context.user_data['selected_platforms'] = selected
+
+        text = (
+            f"🎯 **اختر {target} منصات** تفضلها من القائمة أدناه:\n"
+            f"تم اختيار ({len(selected)} من {target})"
+        )
+        kb = get_selection_keyboard(selected, target)
+        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
+
+    # الانتقال لاختيار المدة بعد اكتمال تحديد المنصات
+    elif data == "proceed_to_duration":
+        b_type = context.user_data.get('bundle_type', 'b2')
+        
+        if b_type == "b2":
+            text = "👥 **عرض منصتين معاً (4 JD للشهر)**\nاختر المدة المطلوبة:"
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (4 JD)", callback_data="pkg_b2_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (8 JD)", callback_data="pkg_b2_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (15 JD)", callback_data="pkg_b2_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (25 JD)", callback_data="pkg_b2_1y")],
+                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_2")]
+            ]
+        elif b_type == "b3":
+            text = "⭐ **عرض الـ 3 منصات (5 JD للشهر)**\nاختر المدة المطلوبة:"
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b3_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (10 JD)", callback_data="pkg_b3_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (18 JD)", callback_data="pkg_b3_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (30 JD)", callback_data="pkg_b3_1y")],
+                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_3")]
+            ]
+        else: # b4
+            text = "💎 **عرض الـ 4 منصات معاً - الباكج الشامل (6 JD للشهر)**\nاختر المدة المطلوبة:"
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b4_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b4_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_b4_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (35 JD)", callback_data="pkg_b4_1y")],
+                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_4")]
+            ]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
     # ملخص الباقة الفردية أو المشتركة وزر الشراء
@@ -341,19 +332,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data['current_sub'] = sub_type
 
-        details_map = {
-            "netflix": "Netflix - جودة 4K (بروفايل خاص)",
+        # أسماء المنصات المرتبة
+        p_names = {
+            "netflix": "Netflix 4K",
             "shahid": "Shahid VIP",
             "osn": "OSN+",
             "disney": "Disney+",
             "noor": "Noor Play",
-            "tod": "TOD (رياضة وترفيه)",
-            "b2": f"عرض منصتين ({context.user_data.get('selected_bundle_items', 'منصتين')})",
-            "b3": f"عرض الـ 3 منصات ({context.user_data.get('selected_bundle_items', '3 منصات')})",
-            "b4": "الباكج الشامل (الـ 4 منصات معاً)"
+            "tod": "TOD"
         }
-        
-        sub_name = details_map.get(sub_type, "عرض ترفيهي")
+
+        if sub_type.startswith("b"):
+            selected_keys = context.user_data.get('selected_platforms', [])
+            selected_names = [p_names.get(k, k) for k in selected_keys]
+            platforms_str = " + ".join(selected_names) if selected_names else "منصات متعددة"
+            
+            if sub_type == "b2":
+                sub_name = f"عرض منصتين ({platforms_str})"
+            elif sub_type == "b3":
+                sub_name = f"عرض 3 منصات ({platforms_str})"
+            else:
+                sub_name = f"الباكج الشامل (4 منصات: {platforms_str})"
+        else:
+            sub_name = p_names.get(sub_type, "اشتراك رقمي")
 
         if sub_type == "b2":
             prices = {"1m": "4 دنانير", "3m": "8 دنانير", "6m": "15 دينار", "1y": "25 دينار"}
@@ -386,12 +387,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"اضغط على زر **'شراء'** أدناه لإتمام الدفع أو تراجع للخلف:"
         )
         
-        if sub_type == "b2":
-            back_target = "bundle_2"
-        elif sub_type == "b3":
-            back_target = "bundle_3"
-        elif sub_type == "b4":
-            back_target = "bundle_4"
+        if sub_type.startswith("b"):
+            back_target = f"bundle_init_{sub_type.replace('b', '')}"
         else:
             back_target = f"sub_{sub_type}"
 
@@ -433,7 +430,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
         context.user_data['waiting_for_receipt'] = True
 
-# استقبال صور الإيصالات وإرسال الإشعار الكامل للأدمن
+# استقبال صور الإيصالات وإرسال الإشعار الكامل للأدمن مع تفاصيل المنصات المختارة
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_receipt'):
         current_sub = context.user_data.get('current_sub', 'default')
