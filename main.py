@@ -5,7 +5,7 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboard
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
-# إعداد خادم ويب خفيف لضمان عدم إغلاق الخدمة على Render (Web Service)
+# إعداد خادم ويب خفيف لضمان عدم إغلاق الخدمة على Render
 web_app = Flask(__name__)
 
 @web_app.route('/')
@@ -230,6 +230,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         duration = parts[2]
 
         context.user_data['current_sub'] = sub_type
+        context.user_data['current_duration'] = duration
 
         details_map = {
             "netflix": "Netflix - جودة 4K (بروفايل خاص - جهاز واحد)",
@@ -250,6 +251,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
             price = prices.get(duration, "حسب الباقة")
             dur_text = dur_map.get(duration, "")
+
+        # حفظ النصوص بالذاكرة لإرسالها للأدمن لاحقاً
+        context.user_data['sub_name_text'] = sub_name
+        context.user_data['dur_text'] = dur_text
+        context.user_data['price_text'] = price
 
         summary_text = (
             f"🛒 **ملخص طلب الاشتراك**\n\n"
@@ -290,13 +296,42 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
         context.user_data['waiting_for_receipt'] = True
 
-# استقبال صور الإيصالات وإرسال التعليمات الدقيقة بناءً على المنصة
+# استقبال صور الإيصالات، إرسال التعليمات للزبون، وتحويل الطلب للأدمن مع التفاصيل كاملة
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_receipt'):
         current_sub = context.user_data.get('current_sub', 'netflix')
         receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, "✅ تم استلام الإيصال بنجاح وسيتم تزويدك بالبيانات قريباً.")
 
+        # الرد على الزبون
         await update.message.reply_text(receipt_text, parse_mode="Markdown")
+
+        # جمع بيانات الزبون والطلب لإرسالها للأدمن
+        user = update.effective_user
+        sub_name = context.user_data.get('sub_name_text', 'اشتراك رقمي')
+        dur_text = context.user_data.get('dur_text', 'غير محدد')
+        price_text = context.user_data.get('price_text', 'غير محدد')
+
+        admin_message = (
+            f"🚨 **طلب اشتراك جديد تم دفع إيصاله!**\n\n"
+            f"👤 **اسم الزبون:** {user.full_name}\n"
+            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
+            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
+            f"📦 **الخدمة / المنصة:** {sub_name}\n"
+            f"⏳ **المدة:** {dur_text}\n"
+            f"💵 **السعر:** {price_text}"
+        )
+
+        # إعادة توجيه صورة الإيصال مع التفاصيل إلى الأدمن مباشرة
+        try:
+            await context.bot.send_photo(
+                chat_id=ADMIN_ID,
+                photo=update.message.photo[-1].file_id,
+                caption=admin_message,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            print(f"Error sending to admin: {e}")
+
         context.user_data['waiting_for_receipt'] = False
     else:
         await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
