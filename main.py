@@ -105,10 +105,92 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=get_main_menu())
 
+# أمر الرد المخصص للأدمن (/reply [user_id] [message])
+async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text("❌ الاستخدام الصحيح للأمر:\n`/reply [user_id] [الرسالة]`", parse_mode="Markdown")
+        return
+
+    target_user_id = args[0]
+    reply_message = " ".join(args[1:])
+
+    try:
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=f"📬 **رد جديد من الإدارة (962ElStore):**\n\n{reply_message}",
+            parse_mode="Markdown"
+        )
+        await update.message.reply_text("✅ تم إرسال الرد إلى الزبون بنجاح!")
+    except Exception as e:
+        await update.message.reply_text(f"❌ فشل إرسال الرسالة للزبون. تأكد من صحة الـ ID.\nالخطأ: {e}")
+
 # التعامل مع الأزرار النصية الرئيسية
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
+    # التعامل مع طلب كود السكن (نتفليكس)
+    if context.user_data.get('waiting_for_netflix_household_email'):
+        user = update.effective_user
+        netflix_email = text
+        
+        await update.message.reply_text(
+            "✅ **تم استلام بريد نتفليكس بنجاح!**\n"
+            "جارٍ إرسال طلب كود السكن للأدمن، سيتم تزويدك بالكود في أقرب وقت ممكن ⏳",
+            parse_mode="Markdown"
+        )
+
+        admin_msg = (
+            f"🏠 **طلب كود سكن نتفليكس (Household Code)!**\n\n"
+            f"👤 **اسم الزبون:** {user.full_name}\n"
+            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
+            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
+            f"📧 **إيميل نتفليكس المطلوب له الكود:**\n`{netflix_email}`\n\n"
+            f"💡 للرد عليه استخدم الأمر:\n`/reply {user.id} [الكود هنا]`"
+        )
+        
+        try:
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+        except Exception as e:
+            print(f"Error sending household request to admin: {e}")
+
+        context.user_data['waiting_for_netflix_household_email'] = False
+        return
+
+    # التعامل مع طلب كود تسجيل الدخول لأي منصة
+    if context.user_data.get('waiting_for_login_code_email'):
+        user = update.effective_user
+        platform_name = context.user_data.get('login_code_platform', 'منصة رقمية')
+        account_info = text
+        
+        await update.message.reply_text(
+            f"✅ **تم استلام تفاصيل حساب ({platform_name}) بنجاح!**\n"
+            "جارٍ إرسال طلب كود تسجيل الدخول للأدمن، سيتم تزويدك بالكود قريباً ⏳",
+            parse_mode="Markdown"
+        )
+
+        admin_msg = (
+            f"🔑 **طلب كود تسجيل دخول جديد!**\n\n"
+            f"👤 **اسم الزبون:** {user.full_name}\n"
+            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
+            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
+            f"📦 **المنصة:** {platform_name}\n"
+            f"📧 **معلومات الحساب / الإيميل:**\n`{account_info}`\n\n"
+            f"💡 للرد عليه استخدم الأمر:\n`/reply {user.id} [الكود هنا]`"
+        )
+        
+        try:
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+        except Exception as e:
+            print(f"Error sending login code request to admin: {e}")
+
+        context.user_data['waiting_for_login_code_email'] = False
+        return
+
+    # باقي الأزرار النصية
     if text == "🛒 الاشتراكات الفردية":
         subs_keyboard = [
             [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
@@ -138,9 +220,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     elif text == "🔑 طلب كود":
+        code_keyboard = [
+            [InlineKeyboardButton("🔑 كود تسجيل دخول", callback_data="code_login_menu")],
+            [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
+        ]
         await update.message.reply_text(
             "🔑 **قسم طلب الأكواد:**\n\n"
-            "إذا قمت بالدفع وتحتاج إلى استلام كود التفعيل أو التحقق (مثل نتفليكس أو أوس إن) الخاص بحسابك، يرجى تزويدنا برقم الطلب أو التواصل مباشرة مع الدعم الفني لتسليمك الكود فوراً."
+            "يرجى اختيار نوع الكود الذي تحتاجه:",
+            reply_markup=InlineKeyboardMarkup(code_keyboard),
+            parse_mode="Markdown"
         )
         
     elif text == "🛠 التواصل مع الدعم":
@@ -164,7 +252,6 @@ def get_selection_keyboard(selected_list, target_count):
     
     keyboard = []
     for key, name in platforms:
-        # إذا كانت المنصة مختارة، نضيف بجانبها علامة الصح ✅
         if key in selected_list:
             btn_text = f"✅ {name}"
             cb_data = f"unsel_{key}"
@@ -173,7 +260,6 @@ def get_selection_keyboard(selected_list, target_count):
             cb_data = f"sel_{key}"
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=cb_data)])
     
-    # إذا وصل العميل للعدد المطلوب من الاختيارات، يظهر له زر المتابعة لاختيار المدة
     if len(selected_list) == target_count:
         keyboard.append([InlineKeyboardButton("➡️ متابعة لاختيار المدة", callback_data="proceed_to_duration")])
     
@@ -214,6 +300,66 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
+    # معالجة طلب الأكواد الرئيسية
+    elif data == "code_login_menu":
+        kb = [
+            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="login_code_netflix")],
+            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="login_code_osn")],
+            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="login_code_disney")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
+        ]
+        await query.message.edit_text(
+            "🔑 **اختر المنصة التي تحتاج كود تسجيل دخول لها:**",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="Markdown"
+        )
+
+    elif data == "code_back_main":
+        code_keyboard = [
+            [InlineKeyboardButton("🔑 كود تسجيل دخول", callback_data="code_login_menu")],
+            [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
+        ]
+        await query.message.edit_text(
+            "🔑 **قسم طلب الأكواد:**\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
+            reply_markup=InlineKeyboardMarkup(code_keyboard),
+            parse_mode="Markdown"
+        )
+
+    elif data.startswith("login_code_"):
+        p_code = data.replace("login_code_", "")
+        p_map = {
+            "netflix": "Netflix - نتفليكس",
+            "osn": "OSN+ - أوس إن",
+            "disney": "Disney+ - ديزني"
+        }
+        platform_name = p_map.get(p_code, "المنصة")
+        context.user_data['login_code_platform'] = platform_name
+        context.user_data['waiting_for_login_code_email'] = True
+
+        await query.message.edit_text(
+            f"🔑 **طلب كود تسجيل دخول ({platform_name}):**\n\n"
+            "الرجاء إرسال **البريد الإلكتروني (الإيميل)** أو معلومات الحساب هنا في المحادثة الآن ✍️",
+            parse_mode="Markdown"
+        )
+
+    elif data == "code_household":
+        await query.message.edit_text(
+            "🏠 **قسم كود السكن (Household Code):**\n\nاختر المنصة المطلوبة:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="hh_netflix")],
+                [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
+            ]),
+            parse_mode="Markdown"
+        )
+
+    elif data == "hh_netflix":
+        context.user_data['waiting_for_netflix_household_email'] = True
+        await query.message.edit_text(
+            "🎬 **طلب كود سكن نتفليكس:**\n\n"
+            "الرجاء إرسال **البريد الإلكتروني (الإيميل)** الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️",
+            parse_mode="Markdown"
+        )
+
     # 1. الاشتراكات الفردية
     elif data.startswith("sub_"):
         sub_type = data.replace("sub_", "")
@@ -237,13 +383,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data=f"{prefix}_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data=f"{prefix}_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_ext_6m" if False else f"{prefix}_6m")],
+                [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data=f"{prefix}_6m")],
                 [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data=f"{prefix}_1y")],
                 [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
             ]
         await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    # 2. بدء اختيار العروض المشتركة
+    # 2. عروض التوفير المشتركة
     elif data.startswith("bundle_init_"):
         count = int(data.replace("bundle_init_", ""))
         context.user_data['bundle_target_count'] = count
@@ -257,7 +403,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = get_selection_keyboard([], count)
         await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
 
-    # اختيار منصة (إضافة علامة الصح)
     elif data.startswith("sel_"):
         p_key = data.replace("sel_", "")
         selected = context.user_data.get('selected_platforms', [])
@@ -274,7 +419,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = get_selection_keyboard(selected, target)
         await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
 
-    # إلغاء اختيار منصة (إزالة علامة الصح)
     elif data.startswith("unsel_"):
         p_key = data.replace("unsel_", "")
         selected = context.user_data.get('selected_platforms', [])
@@ -291,7 +435,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = get_selection_keyboard(selected, target)
         await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
 
-    # الانتقال لاختيار المدة بعد اكتمال تحديد المنصات
     elif data == "proceed_to_duration":
         b_type = context.user_data.get('bundle_type', 'b2')
         
@@ -313,7 +456,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🟢 سنة كاملة (30 JD)", callback_data="pkg_b3_1y")],
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_3")]
             ]
-        else: # b4
+        else:
             text = "💎 **عرض الـ 4 منصات معاً - الباكج الشامل (6 JD للشهر)**\nاختر المدة المطلوبة:"
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b4_1m")],
@@ -324,7 +467,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-    # ملخص الباقة الفردية أو المشتركة وزر الشراء
     elif data.startswith("pkg_"):
         parts = data.split("_")
         sub_type = parts[1]
@@ -332,7 +474,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         context.user_data['current_sub'] = sub_type
 
-        # أسماء المنصات المرتبة
         p_names = {
             "netflix": "Netflix 4K",
             "shahid": "Shahid VIP",
@@ -398,7 +539,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard), parse_mode="Markdown")
 
-    # معلومات كليك وزر الشراء النهائي
     elif data.startswith("buy_"):
         parts = data.split("_")
         sub_type = parts[1]
@@ -430,16 +570,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
         context.user_data['waiting_for_receipt'] = True
 
-# استقبال صور الإيصالات وإرسال الإشعار الكامل للأدمن مع تفاصيل المنصات المختارة
+# استقبال صور الإيصالات للأدمن مع تضمين أمر الرد السريع
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_receipt'):
         current_sub = context.user_data.get('current_sub', 'default')
         receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, RECEIPT_INSTRUCTIONS['default'])
 
-        # الرد على الزبون
         await update.message.reply_text(receipt_text, parse_mode="Markdown")
 
-        # جمع بيانات الزبون والطلب لإرسالها للأدمن
         user = update.effective_user
         sub_name = context.user_data.get('sub_name_text', 'باقة ترفيهية')
         dur_text = context.user_data.get('dur_text', 'غير محدد')
@@ -452,10 +590,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
             f"📦 **الخدمة / الباقة:** {sub_name}\n"
             f"⏳ **المدة:** {dur_text}\n"
-            f"💵 **السعر المدفوع:** {price_text}"
+            f"💵 **السعر المدفوع:** {price_text}\n\n"
+            f"💡 للرد عليه وتسليمه الحساب استخدم الأمر:\n`/reply {user.id} [معلومات الحساب هنا]`"
         )
 
-        # إعادة توجيه صورة الإيصال مع التفاصيل إلى الأدمن مباشرة
         try:
             await context.bot.send_photo(
                 chat_id=ADMIN_ID,
@@ -474,6 +612,7 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("reply", admin_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
