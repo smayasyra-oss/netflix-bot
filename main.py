@@ -3,7 +3,10 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboard
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+# التوكن ورقم الأدمن الخاص بك
+TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
+ADMIN_ID = 7983029778
+
 CLIQ_INFO = "0776453875 (962ElStore)"
 
 # تعليمات تسجيل الدخول الخاصة بكل منصة
@@ -55,7 +58,7 @@ def get_main_menu():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     welcome_text = (
-        f"أهلاً بك في متجر **962ElStore** للتسوق الرقمي[span_0](start_span)[span_0](end_span)!\n\n"
+        f"أهلاً بك في متجر **962ElStore** للتسوق الرقمي!\n\n"
         f"🆔 رقمك التعريفي: `{user.id}`\n"
         f"👤 الاسم: {user.full_name}\n\n"
         f"اختر من القائمة أدناه للبدء:"
@@ -173,7 +176,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 6. تود
     elif data == "sub_tod":
-        text = "⚽ **اشتراك TOD - تود (رياضة وترفيه)**\n(حساب جاهز - يعمل على جهازين FHD)[span_1](start_span)[span_1](end_span)\n\nاختر المدة المطلوبة:"
+        text = "⚽ **اشتراك TOD - تود (رياضة وترفيه)**\n(حساب جاهز - يعمل على جهازين FHD)\n\nاختر المدة المطلوبة:"
         kb = [
             [InlineKeyboardButton("🟢 شهر واحد - جهازين FHD (6 JD)", callback_data="pkg_tod_1m")],
             [InlineKeyboardButton("🟢 3 أشهر - جهازين FHD (9 JD)", callback_data="pkg_tod_3m")],
@@ -187,7 +190,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sub_type = parts[1]
         duration = parts[2]
 
-        # حفظ المنصة المختارة في ذاكرة المستخدم لربطها لاحقاً عند إرسال الإيصال
         context.user_data['current_sub'] = sub_type
 
         if sub_type == "tod":
@@ -235,34 +237,4 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_receipt'] = True
 
 # استقبال صور الإيصالات وإرسال التعليمات بناءً على المنصة
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get('waiting_for_receipt'):
-        current_sub = context.user_data.get('current_sub', 'netflix')
-        instructions = LOGIN_INSTRUCTIONS.get(current_sub, "يرجى الالتزام بسياسة الاستخدام لضمان استمرار الحساب.")
-
-        await update.message.reply_text(
-            f"✅ **تم استلام صورة الإيصال بنجاح!**\n"
-            f"شكراً لك لاختيارك متجر 962ElStore.\n\n"
-            f"👤 **بيانات الحساب الخاص بك:**\n"
-            f"`البريد: [سيتم إرساله من الأدمن]`\n"
-            f"`كلمة المرور: [سيتم إرسالها من الأدمن]`\n\n"
-            f"{instructions}",
-            parse_mode="Markdown"
-        )
-        context.user_data['waiting_for_receipt'] = False
-    else:
-        await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
-
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    
-    print("962ElStore Bot is running...")
-    app.run_polling()
-
-if __name__ == '__main__':
-    main()
+async def handle_photo(update
