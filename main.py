@@ -1,16 +1,19 @@
 import logging
 import threading
 import time
+import requests
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import sqlite3
 
-# إعداد السجلات لمتابعة حالة البوت
+# إعداد السجلات
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# إعداد خادم ويب خفيف لضمان استمرار عمل الخدمة على Render
+# إعداد خادم الويب لـ Render
 web_app = Flask(__name__)
+
+RENDER_URL = "https://netflix-bot-8p4c.onrender.com"
 
 @web_app.route('/')
 def home():
@@ -19,77 +22,83 @@ def home():
 def run_web():
     web_app.run(host="0.0.0.0", port=8080)
 
-# تشغيل خادم الويب في خلفية منفصلة
-threading.Thread(target=run_web, daemon=True).start()
+# دالة لتنشيط البوت ذاتياً كل 4 دقائق لمنع السبات
+def self_ping():
+    while True:
+        try:
+            requests.get(RENDER_URL)
+            print("Self-ping sent successfully to keep bot alive!")
+        except Exception as e:
+            print(f"Self-ping failed: {e}")
+        time.sleep(240)  # كل 4 دقائق
 
-# التوكن ورقم الأدمن الخاص بك
+# تشغيل الويب وخاصية الينغ الذاتي في الخلفية
+threading.Thread(target=run_web, daemon=True).start()
+threading.Thread(target=self_ping, daemon=True).start()
+
+# التوكن ورقم الأدمن
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
 ADMIN_ID = 7983029778
-
-# يوزر نيم حساب الدعم الفني الخاص بك
 SUPPORT_USERNAME = "@e962ElStore"
 
-# معلومات كليك المحدثة
 CLIQ_INFO = (
-    "🔹 **معلومات الدفع عبر كليك (CliQ):**\n"
-    "• **الاسم المستعار:** `XM22`\n"
-    "• **مزود الخدمة:** البنك العربي الإسلامي الدولي\n"
-    "• **اسم المستلم:** محمد بلال فايز بني احمد"
+    "🔹 معلومات الدفع عبر كليك (CliQ):\n"
+    "• الاسم المستعار: XM22\n"
+    "• مزود الخدمة: البنك العربي الإسلامي الدولي\n"
+    "• اسم المستلم: محمد بلال فايز بني احمد"
 )
 
-# تعليمات ما بعد الدفع وإرسال الإيصال لكل منصة
 RECEIPT_INSTRUCTIONS = {
     "default": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_0](start_span)[span_0](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول قريباً:**\n"
-        "⚠️ **تنبيه هام:** يرجى الالتزام بعدم فتح الحساب على أجهزة أكثر من المسموح به لضمان استمرار ضمانك!"
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول قريباً:\n"
+        "⚠️ تنبيه هام: يرجى الالتزام بعدم فتح الحساب على أجهزة أكثر من المسموح به لضمان استمرار ضمانك!"
     ),
     "netflix": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_1](start_span)[span_1](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
-        "• يرجى إدخال البريد الإلكتروني، ثم **الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول**.\n"
-        "⚠️ **تنبيه هام:** التسجيل متاح في **جهاز واحد فقط**، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
+        "• يرجى إدخال البريد الإلكتروني، ثم الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول.\n"
+        "⚠️ تنبيه هام: التسجيل متاح في جهاز واحد فقط، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
     ),
     "shahid": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_2](start_span)[span_2](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
         "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
-        "⚠️ **تنبيه هام:** يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
+        "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
     ),
     "osn": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_3](start_span)[span_3](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
-        "• يرجى إدخال البريد الإلكتروني، ثم **الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول**.\n"
-        "⚠️ **تنبيه هام:** التسجيل متاح في **جهاز واحد فقط**، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
+        "• يرجى إدخال البريد الإلكتروني، ثم الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول.\n"
+        "⚠️ تنبيه هام: التسجيل متاح في جهاز واحد فقط، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
     ),
     "disney": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_4](start_span)[span_4](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
-        "• يرجى استخدام **رقم تلفون و كود** لتسجيل الدخول.\n"
-        "⚠️ **تنبيه هام:** مخصص لجهاز واحد فقط لضمان استقرار الضمان."
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
+        "• يرجى استخدام رقم تلفون و كود لتسجيل الدخول.\n"
+        "⚠️ تنبيه هام: مخصص لجهاز واحد فقط لضمان استقرار الضمان."
     ),
     "noor": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_5](start_span)[span_5](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
         "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
-        "⚠️ **تنبيه هام:** يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
+        "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
     ),
     "tod": (
-        "✅ **تم استلام صورة الإيصال بنجاح!**\n"
-        "شكراً لك لاختيارك متجر **962ElStore**[span_6](start_span)[span_6](end_span).\n\n"
-        "📦 **سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:**\n"
-        "• يرجى استخدام **رقم تلفون و باسورد** لتسجيل الدخول.\n"
-        "⚠️ **تنبيه هام:** الحساب يعمل على جهازين FHD كحد أقصى[span_7](start_span)[span_7](end_span)."
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
+        "• يرجى استخدام رقم تلفون و باسورد لتسجيل الدخول.\n"
+        "⚠️ تنبيه هام: الحساب يعمل على جهازين FHD كحد أقصى."
     )
 }
 
-# القائمة الرئيسية الثابتة
 def get_main_menu():
     keyboard = [
         [KeyboardButton("🛒 الاشتراكات الفردية"), KeyboardButton("🔥 عروض التوفير الكبرى")],
@@ -97,26 +106,24 @@ def get_main_menu():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-# أمر /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     welcome_text = (
-        f"أهلاً بك في متجر **962ElStore** للتسوق الرقمي[span_8](start_span)[span_8](end_span)!\n\n"
-        f"كل اللي تحبه من عالم الترفيه بأسرار مميزة وأسعار منافسة 🎬🍿\n\n"
-        f"🆔 رقمك التعريفي: `{user.id}`\n"
-        f"👤 الاسم: {user.full_name}\n\n"
-        f"اختر من القائمة أدناه للبدء:"
+        "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
+        "كل اللي تحبه من عالم الترفيه بأسرار مميزة وأسعار منافسة 🎬🍿\n\n"
+        f"رقمك التعريفي: {user.id}\n"
+        f"الاسم: {user.full_name}\n\n"
+        "اختر من القائمة أدناه للبدء:"
     )
-    await update.message.reply_text(welcome_text, parse_mode="Markdown", reply_markup=get_main_menu())
+    await update.message.reply_text(welcome_text, reply_markup=get_main_menu())
 
-# أمر الرد المخصص للأدمن (/reply [user_id] [message])
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
 
     args = context.args
     if len(args) < 2:
-        await update.message.reply_text("❌ الاستخدام الصحيح للأمر:\n`/reply [user_id] [الرسالة]`", parse_mode="Markdown")
+        await update.message.reply_text("❌ الاستخدام الصحيح:\n/reply [user_id] [الرسالة]")
         return
 
     target_user_id = args[0]
@@ -125,14 +132,12 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             chat_id=target_user_id,
-            text=f"📬 **رد جديد من الإدارة (962ElStore):**\n\n{reply_message}",
-            parse_mode="Markdown"
+            text=f"📬 رد جديد من الإدارة (962ElStore):\n\n{reply_message}"
         )
         await update.message.reply_text("✅ تم إرسال الرد إلى الزبون بنجاح!")
     except Exception as e:
-        await update.message.reply_text(f"❌ فشل إرسال الرسالة للزبون. تأكد من صحة الـ ID.\nالخطأ: {e}")
+        await update.message.reply_text(f"❌ فشل إرسال الرسالة للزبون:\n{e}")
 
-# التعامل مع الأزرار النصية الرئيسية
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
@@ -141,24 +146,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         netflix_email = text
         
         await update.message.reply_text(
-            "✅ **تم استلام بريد نتفليكس بنجاح!**\n"
-            "جارٍ إرسال طلب كود السكن للأدمن، سيتم تزويدك بالكود في أقرب وقت ممكن ⏳",
-            parse_mode="Markdown"
+            "✅ تم استلام بريد نتفليكس بنجاح!\n"
+            "جارٍ إرسال طلب كود السكن للأدمن، سيتم تزويدك بالكود قريباً ⏳"
         )
 
         admin_msg = (
-            f"🏠 **طلب كود سكن نتفليكس (Household Code)!**\n\n"
-            f"👤 **اسم الزبون:** {user.full_name}\n"
-            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
-            f"📧 **إيميل نتفليكس المطلوب له الكود:**\n`{netflix_email}`\n\n"
-            f"💡 للرد عليه استخدم الأمر:\n`/reply {user.id} [الكود هنا]`"
+            "🏠 طلب كود سكن نتفليكس (Household Code)!\n\n"
+            f"اسم الزبون: {user.full_name}\n"
+            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
+            f"معرف الزبون (ID): {user.id}\n\n"
+            f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
+            f"للرد عليه استخدم الأمر:\n/reply {user.id} [الكود هنا]"
         )
         
         try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
         except Exception as e:
-            print(f"Error sending household request to admin: {e}")
+            print(f"Error: {e}")
 
         context.user_data['waiting_for_netflix_household_email'] = False
         return
@@ -169,25 +173,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         account_info = text
         
         await update.message.reply_text(
-            f"✅ **تم استلام تفاصيل حساب ({platform_name}) بنجاح!**\n"
-            "جارٍ إرسال طلب كود تسجيل الدخول للأدمن، سيتم تزويدك بالكود قريباً ⏳",
-            parse_mode="Markdown"
+            f"✅ تم استلام تفاصيل حساب ({platform_name}) بنجاح!\n"
+            "جارٍ إرسال طلب كود تسجيل الدخول للأدمن، سيتم تزويدك بالكود قريباً ⏳"
         )
 
         admin_msg = (
-            f"🔑 **طلب كود تسجيل دخول جديد!**\n\n"
-            f"👤 **اسم الزبون:** {user.full_name}\n"
-            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
-            f"📦 **المنصة:** {platform_name}\n"
-            f"📧 **معلومات الحساب / الإيميل:**\n`{account_info}`\n\n"
-            f"💡 للرد عليه استخدم الأمر:\n`/reply {user.id} [الكود هنا]`"
+            "🔑 طلب كود تسجيل دخول جديد!\n\n"
+            f"اسم الزبون: {user.full_name}\n"
+            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
+            f"معرف الزبون (ID): {user.id}\n\n"
+            f"المنصة: {platform_name}\n"
+            f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
+            f"للرد عليه استخدم الأمر:\n/reply {user.id} [الكود هنا]"
         )
         
         try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
         except Exception as e:
-            print(f"Error sending login code request to admin: {e}")
+            print(f"Error: {e}")
 
         context.user_data['waiting_for_login_code_email'] = False
         return
@@ -202,9 +205,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
         ]
         await update.message.reply_text(
-            "📦 **قسم الاشتراكات الفردية (الاشتراك الواحد):**\nاختر المنصة التي تناسبك:",
-            reply_markup=InlineKeyboardMarkup(subs_keyboard),
-            parse_mode="Markdown"
+            "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
+            reply_markup=InlineKeyboardMarkup(subs_keyboard)
         )
         
     elif text == "🔥 عروض التوفير الكبرى":
@@ -214,10 +216,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
         ]
         await update.message.reply_text(
-            "🔥 **عروض التوفير الكبرى - 962ElStore**\n\n"
+            "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
             "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
-            reply_markup=InlineKeyboardMarkup(bundles_keyboard),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(bundles_keyboard)
         )
         
     elif text == "🔑 طلب كود":
@@ -226,20 +227,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
         ]
         await update.message.reply_text(
-            "🔑 **قسم طلب الأكواد:**\n\n"
-            "يرجى اختيار نوع الكود الذي تحتاجه:",
-            reply_markup=InlineKeyboardMarkup(code_keyboard),
-            parse_mode="Markdown"
+            "🔑 قسم طلب الأكواد:\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
+            reply_markup=InlineKeyboardMarkup(code_keyboard)
         )
         
     elif text == "🛠 التواصل مع الدعم":
         support_text = (
-            f"🛠 **الدعم الفني وخدمة العملاء - 962ElStore**\n\n"
-            f"إذا واجهتك أي مشكلة أو استفسار، يسعدنا تواصلك معنا مباشرة عبر حساب الدعم:\n"
+            "🛠 الدعم الفني وخدمة العملاء - 962ElStore\n\n"
+            "إذا واجهتك أي مشكلة أو استفسار، يسعدنا تواصلك معنا مباشرة عبر حساب الدعم:\n"
             f"💬 {SUPPORT_USERNAME}\n\n"
-            f"نحن في خدمتكم على مدار الساعة!"
+            "نحن في خدمتكم على مدار الساعة!"
         )
-        await update.message.reply_text(support_text, parse_mode="Markdown")
+        await update.message.reply_text(support_text)
 
 def get_selection_keyboard(selected_list, target_count):
     platforms = [
@@ -281,9 +280,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
         ]
         await query.message.edit_text(
-            "📦 **قسم الاشتراكات الفردية (الاشتراك الواحد):**\nاختر المنصة التي تناسبك:",
-            reply_markup=InlineKeyboardMarkup(subs_keyboard),
-            parse_mode="Markdown"
+            "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
+            reply_markup=InlineKeyboardMarkup(subs_keyboard)
         )
 
     elif data == "back_to_bundles":
@@ -293,10 +291,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
         ]
         await query.message.edit_text(
-            "🔥 **عروض التوفير الكبرى - 962ElStore**\n\n"
+            "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
             "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
-            reply_markup=InlineKeyboardMarkup(bundles_keyboard),
-            parse_mode="Markdown"
+            reply_markup=InlineKeyboardMarkup(bundles_keyboard)
         )
 
     elif data == "code_login_menu":
@@ -307,9 +304,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
         ]
         await query.message.edit_text(
-            "🔑 **اختر المنصة التي تحتاج كود تسجيل دخول لها:**",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="Markdown"
+            "🔑 اختر المنصة التي تحتاج كود تسجيل دخول لها:",
+            reply_markup=InlineKeyboardMarkup(kb)
         )
 
     elif data == "code_back_main":
@@ -318,9 +314,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
         ]
         await query.message.edit_text(
-            "🔑 **قسم طلب الأكواد:**\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
-            reply_markup=InlineKeyboardMarkup(code_keyboard),
-            parse_mode="Markdown"
+            "🔑 قسم طلب الأكواد:\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
+            reply_markup=InlineKeyboardMarkup(code_keyboard)
         )
 
     elif data.startswith("login_code_"):
@@ -335,27 +330,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_login_code_email'] = True
 
         await query.message.edit_text(
-            f"🔑 **طلب كود تسجيل دخول ({platform_name}):**\n\n"
-            "الرجاء إرسال **البريد الإلكتروني (الإيميل)** أو معلومات الحساب هنا في المحادثة الآن ✍️",
-            parse_mode="Markdown"
+            f"🔑 طلب كود تسجيل دخول ({platform_name}):\n\n"
+            "الرجاء إرسال البريد الإلكتروني (الإيميل) أو معلومات الحساب هنا في المحادثة الآن ✍️"
         )
 
     elif data == "code_household":
         await query.message.edit_text(
-            "🏠 **قسم كود السكن (Household Code):**\n\nاختر المنصة المطلوبة:",
+            "🏠 قسم كود السكن (Household Code):\n\nاختر المنصة المطلوبة:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="hh_netflix")],
                 [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
-            ]),
-            parse_mode="Markdown"
+            ])
         )
 
     elif data == "hh_netflix":
         context.user_data['waiting_for_netflix_household_email'] = True
         await query.message.edit_text(
-            "🎬 **طلب كود سكن نتفليكس:**\n\n"
-            "الرجاء إرسال **البريد الإلكتروني (الإيميل)** الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️",
-            parse_mode="Markdown"
+            "🎬 طلب كود سكن نتفليكس:\n\n"
+            "الرجاء إرسال البريد الإلكتروني (الإيميل) الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️"
         )
 
     elif data.startswith("sub_"):
@@ -384,7 +376,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data=f"{prefix}_1y")],
                 [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
             ]
-        await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb))
 
     elif data.startswith("bundle_init_"):
         count = int(data.replace("bundle_init_", ""))
@@ -393,11 +385,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['bundle_type'] = f"b{count}"
 
         text = (
-            f"🎯 **اختر {count} منصات** تفضلها من القائمة أدناه:\n"
-            f"(كلما تضغط على منصة سيتم تفعيلها بـ ✅، وعند إتمام اختيارك سيظهر زر المتابعة)"
+            f"🎯 اختر {count} منصات تفضلها من القائمة أدناه:\n"
+            "(كلما تضغط على منصة سيتم تفعيلها بـ ✅، وعند إتمام اختيارك سيظهر زر المتابعة)"
         )
         kb = get_selection_keyboard([], count)
-        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
+        await query.message.edit_text(text, reply_markup=kb)
 
     elif data.startswith("sel_"):
         p_key = data.replace("sel_", "")
@@ -409,11 +401,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['selected_platforms'] = selected
 
         text = (
-            f"🎯 **اختر {target} منصات** تفضلها من القائمة أدناه:\n"
+            f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
             f"تم اختيار ({len(selected)} من {target})"
         )
         kb = get_selection_keyboard(selected, target)
-        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
+        await query.message.edit_text(text, reply_markup=kb)
 
     elif data.startswith("unsel_"):
         p_key = data.replace("unsel_", "")
@@ -425,17 +417,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['selected_platforms'] = selected
 
         text = (
-            f"🎯 **اختر {target} منصات** تفضلها من القائمة أدناه:\n"
+            f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
             f"تم اختيار ({len(selected)} من {target})"
         )
         kb = get_selection_keyboard(selected, target)
-        await query.message.edit_text(text, reply_markup=kb, parse_mode="Markdown")
+        await query.message.edit_text(text, reply_markup=kb)
 
     elif data == "proceed_to_duration":
         b_type = context.user_data.get('bundle_type', 'b2')
         
         if b_type == "b2":
-            text = "👥 **عرض منصتين معاً (4 JD للشهر)**\nاختر المدة المطلوبة:"
+            text = "👥 عرض منصتين معاً (4 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (4 JD)", callback_data="pkg_b2_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (8 JD)", callback_data="pkg_b2_3m")],
@@ -444,7 +436,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_2")]
             ]
         elif b_type == "b3":
-            text = "⭐ **عرض الـ 3 منصات (5 JD للشهر)**\nاختر المدة المطلوبة:"
+            text = "⭐ عرض الـ 3 منصات (5 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b3_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (10 JD)", callback_data="pkg_b3_3m")],
@@ -453,7 +445,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_3")]
             ]
         else:
-            text = "💎 **عرض الـ 4 منصات معاً - الباكج الشامل (6 JD للشهر)**\nاختر المدة المطلوبة:"
+            text = "💎 عرض الـ 4 منصات معاً - الباكج الشامل (6 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b4_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b4_3m")],
@@ -461,7 +453,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🟢 سنة كاملة (35 JD)", callback_data="pkg_b4_1y")],
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_4")]
             ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
     elif data.startswith("pkg_"):
         parts = data.split("_")
@@ -517,11 +509,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['price_text'] = price
 
         summary_text = (
-            f"🛒 **ملخص طلب الاشتراك**\n\n"
-            f"📌 **الخدمة / الباقة:** {sub_name}\n"
-            f"⏳ **المدة:** {dur_text}\n"
-            f"💵 **السعر الإجمالي:** {price}\n\n"
-            f"اضغط على زر **'شراء'** أدناه لإتمام الدفع أو تراجع للخلف:"
+            "🛒 ملخص طلب الاشتراك\n\n"
+            f"📌 الخدمة / الباقة: {sub_name}\n"
+            f"⏳ المدة: {dur_text}\n"
+            f"💵 السعر الإجمالي: {price}\n\n"
+            "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
         )
         
         if sub_type.startswith("b"):
@@ -533,7 +525,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💳 شراء وإتمام الدفع", callback_data=f"buy_{sub_type}_{duration}")],
             [InlineKeyboardButton("⬅️ رجوع", callback_data=back_target)]
         ]
-        await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard), parse_mode="Markdown")
+        await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard))
 
     elif data.startswith("buy_"):
         parts = data.split("_")
@@ -554,16 +546,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price = prices.get(duration, "حسب الباقة")
 
         checkout_text = (
-            f"💳 **معلومات الدفع عبر كليك (CliQ)**\n\n"
+            "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
             f"{CLIQ_INFO}\n\n"
-            f"💵 **المطلوب تحويله:** {price}\n\n"
-            f"📸 **الخطوة الأخيرة:** قم بتحويل المبلغ، ثم **أرسل صورة (سكرين شوت) للإيصال** هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
+            f"💵 المطلوب تحويله: {price}\n\n"
+            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         )
         
         back_keyboard = [
             [InlineKeyboardButton("⬅️ رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
         ]
-        await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard), parse_mode="Markdown")
+        await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard))
         context.user_data['waiting_for_receipt'] = True
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -571,7 +563,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current_sub = context.user_data.get('current_sub', 'default')
         receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, RECEIPT_INSTRUCTIONS['default'])
 
-        await update.message.reply_text(receipt_text, parse_mode="Markdown")
+        await update.message.reply_text(receipt_text)
 
         user = update.effective_user
         sub_name = context.user_data.get('sub_name_text', 'باقة ترفيهية')
@@ -579,25 +571,24 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price_text = context.user_data.get('price_text', 'غير محدد')
 
         admin_message = (
-            f"🚨 **طلب اشتراك جديد تم دفع إيصاله (962ElStore)!**\n\n"
-            f"👤 **اسم الزبون:** {user.full_name}\n"
-            f"🔗 **يوزر الزبون:** @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 **معرف الزبون (ID):** `{user.id}`\n\n"
-            f"📦 **الخدمة / الباقة:** {sub_name}\n"
-            f"⏳ **المدة:** {dur_text}\n"
-            f"💵 **السعر المدفوع:** {price_text}\n\n"
-            f"💡 للرد عليه وتسليمه الحساب استخدم الأمر:\n`/reply {user.id} [معلومات الحساب هنا]`"
+            "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
+            f"اسم الزبون: {user.full_name}\n"
+            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
+            f"معرف الزبون (ID): {user.id}\n\n"
+            f"الخدمة / الباقة: {sub_name}\n"
+            f"المدة: {dur_text}\n"
+            f"السعر المدفوع: {price_text}\n\n"
+            f"للرد عليه وتسليمه الحساب استخدم الأمر:\n/reply {user.id} [معلومات الحساب هنا]"
         )
 
         try:
             await context.bot.send_photo(
                 chat_id=ADMIN_ID,
                 photo=update.message.photo[-1].file_id,
-                caption=admin_message,
-                parse_mode="Markdown"
+                caption=admin_message
             )
         except Exception as e:
-            print(f"Error sending to admin: {e}")
+            print(f"Error: {e}")
 
         context.user_data['waiting_for_receipt'] = False
     else:
@@ -614,11 +605,14 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running with Auto-Reconnect...")
+            print("962ElStore Bot is running with Self-Ping mechanism...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
-            print(f"Bot crashed with error: {e}. Restarting in 5 seconds...")
+            print(f"Error: {e}. Restarting in 5 seconds...")
             time.sleep(5)
+
+if __name__ == 'main':
+    main()
 
 if __name__ == '__main__':
     main()
