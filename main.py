@@ -35,10 +35,11 @@ def self_ping():
 threading.Thread(target=run_web, daemon=True).start()
 threading.Thread(target=self_ping, daemon=True).start()
 
-# التوكن ورقم الأدمن
+# التوكن ورقم الأدمن ومعرف القناة
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
 ADMIN_ID = 7983029778
 SUPPORT_USERNAME = "@e962ElStore"
+CHANNEL_USERNAME = "@El962Store"  # يوزر القناة للتحقق من الاشتراك
 
 CLIQ_INFO = (
     "🔹 معلومات الدفع عبر كليك (CliQ):\n"
@@ -96,11 +97,17 @@ RECEIPT_INSTRUCTIONS = {
         "• يرجى استخدام رقم تلفون و باسورد لتسجيل الدخول.\n"
         "⚠️ تنبيه هام: الحساب يعمل على جهازين FHD كحد أقصى."
     ),
-    "chatgpt": (
+    "chatgpt_shared": (
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات حساب ChatGPT Plus وتفاصيل تفعيله فوراً:\n"
-        "⚠️ تنبيه هام: الحساب مخصص لك وحدك لضمان استقرار الخدمة واستمرارية العمل!"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT المشترك فوراً:\n"
+        "⚠️ تنبيه هام: للباقات طويلة الأجل (3 أشهر، 6 أشهر، سنة)، يرجى العلم أنه يتم تزويدك بكل شهر بإيميل مختلف لضمان استمرارية الضمان!"
+    ),
+    "chatgpt_private": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT الخاص بك فوراً:\n"
+        "⚠️ تنبيه هام: الحساب خاص بك وحدك ومحمي بالكامل طوال فترة الاشتراك."
     )
 }
 
@@ -112,8 +119,40 @@ def get_main_menu():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
+# دالة التحقق من اشتراك المستخدم في القناة
+async def check_user_channel_membership(bot, user_id):
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        # إذا كان منضم أو مشرف أو مالك
+        if member.status in ['member', 'administrator', 'creator']:
+            return True
+    except Exception as e:
+        print(f"Error checking channel membership: {e}")
+    return False
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    
+    # التحقق هل اشترك بالقناة أم لا
+    is_member = await check_user_channel_membership(context.bot, user.id)
+    
+    if not is_member:
+        # إرسال رسالة طلب الاشتراك مع زر القناة وزر التحقق
+        join_keyboard = [
+            [InlineKeyboardButton("📢 اشترك في القناة الآن", url="https://t.me/El962Store")],
+            [InlineKeyboardButton("✅ لقد اشتريت / اشتركت، تحقق الآن", callback_data="verify_subscription")]
+        ]
+        await update.message.reply_text(
+            f"أهلاً بك يا {user.full_name} في متجر 962ElStore 🎬🤖\n\n"
+            "⚠️ **عذراً، يرجى الاشتراك في قناة المتجر أولاً لتتمكن من استخدام البوت ومتابعة العروض الحصرية:**\n"
+            "👉 https://t.me/El962Store\n\n"
+            "بعد الانضمام، اضغط على زر **(تحقق الآن)** بالأسفل 👇",
+            reply_markup=InlineKeyboardMarkup(join_keyboard),
+            disable_web_page_preview=True
+        )
+        return
+
+    # إذا كان مشتركاً بالفعل، يفتح البوت بشكل طبيعي
     welcome_text = (
         "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
         "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
@@ -145,6 +184,22 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ فشل إرسال الرسالة للزبون:\n{e}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    
+    # حماية إضافية: التأكد أنه مشترك بالقناة قبل الرد على أي رسالة نصية
+    is_member = await check_user_channel_membership(context.bot, user.id)
+    if not is_member:
+        join_keyboard = [
+            [InlineKeyboardButton("📢 اشترك في القناة الآن", url="https://t.me/El962Store")],
+            [InlineKeyboardButton("✅ لقد اشتريت / اشتركت، تحقق الآن", callback_data="verify_subscription")]
+        ]
+        await update.message.reply_text(
+            "⚠️ تنبيه: يرجى الاشتراك في قناة المتجر أولاً للاستمرار:\n👉 https://t.me/El962Store\n\nثم اضغط على زر التحقق 👇",
+            reply_markup=InlineKeyboardMarkup(join_keyboard),
+            disable_web_page_preview=True
+        )
+        return
+
     text = update.message.text
     
     if context.user_data.get('waiting_for_issue_email'):
@@ -159,7 +214,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if context.user_data.get('waiting_for_issue_description'):
-        user = update.effective_user
         platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
         issue_email = context.user_data.get('issue_email', 'غير محدد')
         issue_desc = text
@@ -189,7 +243,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if context.user_data.get('waiting_for_netflix_household_email'):
-        user = update.effective_user
         netflix_email = text
         
         await update.message.reply_text(
@@ -215,7 +268,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if context.user_data.get('waiting_for_login_code_email'):
-        user = update.effective_user
         platform_name = context.user_data.get('login_code_platform', 'منصة رقمية')
         account_info = text
         
@@ -250,7 +302,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt")]
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
         ]
         await update.message.reply_text(
             "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
@@ -332,8 +384,28 @@ def get_bundle_selection_keyboard(selected_list, target_count):
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    user = query.from_user
     data = query.data
+
+    # معالجة زر التحقق من الاشتراك بالقناة
+    if data == "verify_subscription":
+        is_member = await check_user_channel_membership(context.bot, user.id)
+        if is_member:
+            await query.answer("✅ شكراً لاشتراكك في القناة!", show_alert=True)
+            welcome_text = (
+                "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
+                "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
+                f"رقمك التعريفي: {user.id}\n"
+                f"الاسم: {user.full_name}\n\n"
+                "اختر من القائمة أدناه للبدء:"
+            )
+            await query.message.edit_text(welcome_text)
+            await query.message.reply_text("القائمة الرئيسية:", reply_markup=get_main_menu())
+        else:
+            await query.answer("❌ عذراً، لم تقم بالاشتراك في القناة بعد! يرجى الاشتراك أولاً.", show_alert=True)
+        return
+
+    await query.answer()
 
     if data.startswith("issue_"):
         p_code = data.replace("issue_", "")
@@ -365,7 +437,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt")]
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
         ]
         await query.message.edit_text(
             "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
@@ -438,6 +510,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "الرجاء إرسال البريد الإلكتروني (الإيميل) الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️"
         )
 
+    elif data == "sub_chatgpt_menu":
+        kb = [
+            [InlineKeyboardButton("👥 حساب ChatGPT مشترك", callback_data="sub_chatgpt_shared_menu")],
+            [InlineKeyboardButton("⭐ حساب ChatGPT خاص (مستقل)", callback_data="pkg_chatgpt_private_1m")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
+        ]
+        await query.message.edit_text(
+            "🤖 اختر نوع اشتراك ChatGPT Plus الذي تفضله:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+
+    elif data == "sub_chatgpt_shared_menu":
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_chatgpt_shared_1m")],
+            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_chatgpt_shared_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_chatgpt_shared_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_chatgpt_shared_1y")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_chatgpt_menu")]
+        ]
+        await query.message.edit_text(
+            "🤖 اشتراك ChatGPT Plus (حساب مشترك):\nاختر المدة المطلوبة:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+
     elif data.startswith("sub_"):
         sub_type = data.replace("sub_", "")
         details_map = {
@@ -446,8 +542,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "osn": ("🎥 اشتراك OSN+ - أوس إن (جهاز واحد)", "pkg_osn"),
             "disney": ("✨ اشتراك Disney+ - ديزني (جهاز واحد)", "pkg_disney"),
             "noor": ("🌙 اشتراك Noor Play - نور بلاي (جهاز واحد)", "pkg_noor"),
-            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod"),
-            "chatgpt": ("🤖 اشتراك ChatGPT Plus - شات جي بي تي (حساب خاص)", "pkg_chatgpt")
+            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod")
         }
         title, prefix = details_map[sub_type]
         
@@ -455,11 +550,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data=f"{prefix}_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (9 JD)", callback_data=f"{prefix}_3m")],
-                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-            ]
-        elif sub_type == "chatgpt":
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data=f"{prefix}_1m")],
                 [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
             ]
         else:
@@ -551,8 +641,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("pkg_"):
         parts = data.split("_")
-        sub_type = parts[1]
-        duration = parts[2]
+        
+        if parts[1] == "chatgpt":
+            sub_type = f"{parts[1]}_{parts[2]}"
+            duration = parts[3]
+        else:
+            sub_type = parts[1]
+            duration = parts[2]
 
         context.user_data['current_sub'] = sub_type
 
@@ -563,7 +658,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "disney": "Disney+",
             "noor": "Noor Play",
             "tod": "TOD",
-            "chatgpt": "ChatGPT Plus"
+            "chatgpt_shared": "ChatGPT Plus (مشترك)",
+            "chatgpt_private": "ChatGPT Plus (خاص)"
         }
 
         if sub_type.startswith("b"):
@@ -592,8 +688,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر"}
-        elif sub_type == "chatgpt":
-            prices = {"1m": "5 دنانير"}
+        elif sub_type == "chatgpt_shared":
+            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
+            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
+        elif sub_type == "chatgpt_private":
+            prices = {"1m": "8 دنانير"}
             dur_map = {"1m": "شهر واحد"}
         else:
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
@@ -611,11 +710,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📌 الخدمة / الباقة: {sub_name}\n"
             f"⏳ المدة: {dur_text}\n"
             f"💵 السعر الإجمالي: {price}\n\n"
-            "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
         )
+
+        if sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
+            summary_text += "⚠️ **ملاحظة هامة:** في الاشتراكات المشتركة طويلة الأجل (3 أشهر، 6 أشهر، سنة)، يتم تزويدك **بكل شهر بإيميل مختلف** لضمان استمرارية الضمان.\n\n"
+
+        summary_text += "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
         
         if sub_type.startswith("b"):
             back_target = f"bundle_init_{sub_type.replace('b', '')}"
+        elif sub_type == "chatgpt_shared":
+            back_target = "sub_chatgpt_shared_menu"
+        elif sub_type == "chatgpt_private":
+            back_target = "sub_chatgpt_menu"
         else:
             back_target = f"sub_{sub_type}"
 
@@ -627,8 +734,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("buy_"):
         parts = data.split("_")
-        sub_type = parts[1]
-        duration = parts[2]
+        
+        if parts[1] == "chatgpt":
+            sub_type = f"{parts[1]}_{parts[2]}"
+            duration = parts[3]
+        else:
+            sub_type = parts[1]
+            duration = parts[2]
 
         if sub_type == "b2":
             prices = {"1m": "5 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "38 دينار"}
@@ -638,8 +750,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
-        elif sub_type == "chatgpt":
-            prices = {"1m": "5 دنانير"}
+        elif sub_type == "chatgpt_shared":
+            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
+        elif sub_type == "chatgpt_private":
+            prices = {"1m": "8 دنانير"}
         else:
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
 
@@ -649,8 +763,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
             f"{CLIQ_INFO}\n\n"
             f"💵 المطلوب تحويله: {price}\n\n"
-            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         )
+
+        if sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
+            checkout_text += "⚠️ **ملاحظة تذكيرية:** الاشتراكات المشتركة (3 أشهر، 6 أشهر، سنة) يتم إعطاؤك إيميل مختلف لكل شهر.\n\n"
+
+        checkout_text += "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) لنقابة الإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         
         back_keyboard = [
             [InlineKeyboardButton("⬅️ رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
@@ -659,13 +777,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_receipt'] = True
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    
+    # التأكد من اشتراكه بالقناة أيضاً عند إرسال الإيصال
+    is_member = await check_user_channel_membership(context.bot, user.id)
+    if not is_member:
+        await update.message.reply_text("⚠️ يرجى الاشتراك في قناة المتجر أولاً للاستمرار: https://t.me/El962Store")
+        return
+
     if context.user_data.get('waiting_for_receipt'):
         current_sub = context.user_data.get('current_sub', 'default')
         receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, RECEIPT_INSTRUCTIONS['default'])
 
         await update.message.reply_text(receipt_text)
 
-        user = update.effective_user
         sub_name = context.user_data.get('sub_name_text', 'باقة ترفيهية')
         dur_text = context.user_data.get('dur_text', 'غير محدد')
         price_text = context.user_data.get('price_text', 'غير محدد')
@@ -674,7 +799,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
             f"اسم الزبون: {user.full_name}\n"
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"معرف الزبون (ID): {user.id}\n\n"
+            f"🆔 معرف الزبون (ID): {user.id}\n\n"
             f"الخدمة / الباقة: {sub_name}\n"
             f"المدة: {dur_text}\n"
             f"السعر المدفوع: {price_text}\n\n"
@@ -705,7 +830,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with ChatGPT Plus in Bundles...")
+            print("962ElStore Bot is running smoothly with Channel Force-Subscribe...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
