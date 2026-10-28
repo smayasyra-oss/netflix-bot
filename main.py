@@ -35,9 +35,9 @@ def self_ping():
 threading.Thread(target=run_web, daemon=True).start()
 threading.Thread(target=self_ping, daemon=True).start()
 
-# التوكن ورقم الأدمن ومعرف القناة
+# التوكن ومعرفات الأدمن (محمد وحسام) ومعرف القناة
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
-ADMIN_ID = 7983029778
+ADMINS = [7983029778, 5884539860]  # [محمد، حسام]
 SUPPORT_USERNAME = "@e962ElStore"
 CHANNEL_USERNAME = "@El962Store"
 
@@ -127,6 +127,16 @@ async def check_user_channel_membership(bot, user_id):
         print(f"Error checking channel membership: {e}")
     return False
 
+async def broadcast_to_admins(context, text, reply_markup=None, photo=None):
+    for admin_id in ADMINS:
+        try:
+            if photo:
+                await context.bot.send_photo(chat_id=admin_id, photo=photo, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+            else:
+                await context.bot.send_message(chat_id=admin_id, text=text, reply_markup=reply_markup, parse_mode="Markdown")
+        except Exception as e:
+            print(f"Error sending to admin {admin_id}: {e}")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     is_member = await check_user_channel_membership(context.bot, user.id)
@@ -156,7 +166,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(welcome_text, reply_markup=get_main_menu())
 
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
+    if update.effective_user.id not in ADMINS:
         return
 
     args = context.args
@@ -223,15 +233,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📦 المنصة: {platform_name}\n"
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
             f"📝 وصف المشكلة:\n{issue_desc}\n\n"
+            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الرد_هنا`"
         )
         
-        try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
-        except Exception as e:
-            print(f"Error sending issue to admin: {e}")
-
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+        ])
+        
+        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
         context.user_data['waiting_for_issue_description'] = False
         return
 
@@ -249,15 +261,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
+            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الكود_هنا`"
         )
         
-        try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
-        except Exception as e:
-            print(f"Error: {e}")
-
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+        ])
+        
+        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
         context.user_data['waiting_for_netflix_household_email'] = False
         return
 
@@ -277,15 +291,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"المنصة: {platform_name}\n"
             f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
+            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الكود_هنا`"
         )
         
-        try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
-        except Exception as e:
-            print(f"Error: {e}")
-
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+        ])
+        
+        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
         context.user_data['waiting_for_login_code_email'] = False
         return
 
@@ -381,6 +397,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     data = query.data
+
+    # معالجة أزرار استلام الطلبات بين محمد وحسام
+    if data.startswith("claim_"):
+        parts = data.split("_")
+        claimer = "محمد 🟢" if parts[1] == "mohammad" else "حسام 🟢"
+        
+        try:
+            old_caption = query.message.caption or query.message.text
+            new_text = old_caption.replace("🟢 **حالة الطلب:** لم يتم الاستلام بعد", f"🔥 **قيد المعالجة حالياً بواسطة:** {claimer}")
+            
+            # تحديث الرسالة عند كلا الأدمنز إن أمكن أو تعديل الرسالة الحالية
+            if query.message.photo:
+                await query.message.edit_caption(caption=new_text, parse_mode="Markdown", reply_markup=None)
+            else:
+                await query.message.edit_text(text=new_text, parse_mode="Markdown", reply_markup=None)
+                
+            await query.answer(f"✅ تم تسجيل أنك استلمت الطلب يا {claimer.split()[0]}!")
+        except Exception as e:
+            print(f"Error claiming order: {e}")
+            await query.answer("تم استلام الطلب مسبقاً أو حدث تحديث.", show_alert=True)
+        return
 
     if data == "verify_subscription":
         is_member = await check_user_channel_membership(context.bot, user.id)
@@ -759,7 +796,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
             f"{CLIQ_INFO}\n\n"
             f"💵 المطلوب تحويله: {price}\n\n"
-            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم تفعيل باقتك فوراً!"
+            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         )
         
         back_keyboard = [
@@ -776,7 +813,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ يرجى الاشتراك في قناة المتجر أولاً للاستمرار: https://t.me/El962Store")
         return
 
-    # دعم إرسال صورة المشكلة في قسم الشكاوي
     if context.user_data.get('waiting_for_issue_description'):
         platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
         issue_email = context.user_data.get('issue_email', 'غير محدد')
@@ -793,17 +829,25 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"📦 المنصة: {platform_name}\n"
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
+            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الرد_هنا`"
         )
 
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+        ])
+
         try:
-            await context.bot.send_photo(
-                chat_id=ADMIN_ID,
-                photo=update.message.photo[-1].file_id,
-                caption=admin_msg,
-                parse_mode="Markdown"
-            )
+            for admin_id in ADMINS:
+                await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=update.message.photo[-1].file_id,
+                    caption=admin_msg,
+                    reply_markup=markup,
+                    parse_mode="Markdown"
+                )
         except Exception as e:
             print(f"Error: {e}")
 
@@ -828,17 +872,25 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"الخدمة / الباقة: {sub_name}\n"
             f"المدة: {dur_text}\n"
             f"السعر المدفوع: {price_text}\n\n"
+            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_معلومات_الحساب_هنا`"
         )
 
+        markup = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+        ])
+
         try:
-            await context.bot.send_photo(
-                chat_id=ADMIN_ID,
-                photo=update.message.photo[-1].file_id,
-                caption=admin_message,
-                parse_mode="Markdown"
-            )
+            for admin_id in ADMINS:
+                await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=update.message.photo[-1].file_id,
+                    caption=admin_message,
+                    reply_markup=markup,
+                    parse_mode="Markdown"
+                )
         except Exception as e:
             print(f"Error: {e}")
 
@@ -857,7 +909,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Issue Photo support...")
+            print("962ElStore Bot is running smoothly with Multi-Admin Claim system...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
