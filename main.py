@@ -1,7 +1,7 @@
 import logging
 import threading
 import time
-import requests
+import urllib.request
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
@@ -22,11 +22,11 @@ def home():
 def run_web():
     web_app.run(host="0.0.0.0", port=8080)
 
-# دالة لتنشيط البوت ذاتياً لمنع السبات
+# دالة لتنشيط البوت ذاتياً لمنع السبات باستخدام مكتبة مدمجة
 def self_ping():
     while True:
         try:
-            requests.get(RENDER_URL)
+            urllib.request.urlopen(RENDER_URL)
             print("Self-ping sent successfully to keep bot alive!")
         except Exception as e:
             print(f"Self-ping failed: {e}")
@@ -86,7 +86,7 @@ RECEIPT_INSTRUCTIONS = {
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
         "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول。\n"
+        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
         "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
     ),
     "tod": (
@@ -98,7 +98,6 @@ RECEIPT_INSTRUCTIONS = {
     )
 }
 
-# القائمة الرئيسية المحدثة لتشمل زر "مشكلة في حسابي"
 def get_main_menu():
     keyboard = [
         [KeyboardButton("🛒 الاشتراكات الفردية"), KeyboardButton("🔥 عروض التوفير الكبرى")],
@@ -142,7 +141,6 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     
-    # 1. معالجة إدخال إيميل المشكلة في الحساب
     if context.user_data.get('waiting_for_issue_email'):
         context.user_data['issue_email'] = text
         context.user_data['waiting_for_issue_email'] = False
@@ -154,7 +152,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 2. معالجة إدخال وصف المشكلة النهائي وإرسالها للأدمن
     if context.user_data.get('waiting_for_issue_description'):
         user = update.effective_user
         platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
@@ -185,7 +182,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_issue_description'] = False
         return
 
-    # معالجة كود السكن لنتفليكس
     if context.user_data.get('waiting_for_netflix_household_email'):
         user = update.effective_user
         netflix_email = text
@@ -212,7 +208,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_netflix_household_email'] = False
         return
 
-    # معالجة طلب كود تسجيل الدخول
     if context.user_data.get('waiting_for_login_code_email'):
         user = update.effective_user
         platform_name = context.user_data.get('login_code_platform', 'منصة رقمية')
@@ -241,7 +236,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['waiting_for_login_code_email'] = False
         return
 
-    # الأزرار النصية الرئيسية
     if text == "🛒 الاشتراكات الفردية":
         subs_keyboard = [
             [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
@@ -332,7 +326,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
-    # معالجة اختيار المنصة للإبلاغ عن مشكلة
     if data.startswith("issue_"):
         p_code = data.replace("issue_", "")
         p_map = {
@@ -585,4 +578,115 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
 
-        price = prices.get
+        price = prices.get(duration, "حسب الباقة")
+        dur_text = dur_map.get(duration, "")
+
+        context.user_data['sub_name_text'] = sub_name
+        context.user_data['dur_text'] = dur_text
+        context.user_data['price_text'] = price
+
+        summary_text = (
+            "🛒 ملخص طلب الاشتراك\n\n"
+            f"📌 الخدمة / الباقة: {sub_name}\n"
+            f"⏳ المدة: {dur_text}\n"
+            f"💵 السعر الإجمالي: {price}\n\n"
+            "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
+        )
+        
+        if sub_type.startswith("b"):
+            back_target = f"bundle_init_{sub_type.replace('b', '')}"
+        else:
+            back_target = f"sub_{sub_type}"
+
+        buy_keyboard = [
+            [InlineKeyboardButton("💳 شراء وإتمام الدفع", callback_data=f"buy_{sub_type}_{duration}")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data=back_target)]
+        ]
+        await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard))
+
+    elif data.startswith("buy_"):
+        parts = data.split("_")
+        sub_type = parts[1]
+        duration = parts[2]
+
+        if sub_type == "b2":
+            prices = {"1m": "4 دنانير", "3m": "8 دنانير", "6m": "15 دينار", "1y": "25 دينار"}
+        elif sub_type == "b3":
+            prices = {"1m": "5 دنانير", "3m": "10 دنانير", "6m": "18 دينار", "1y": "30 دينار"}
+        elif sub_type == "b4":
+            prices = {"1m": "6 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "35 دينار"}
+        elif sub_type == "tod":
+            prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
+        else:
+            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
+
+        price = prices.get(duration, "حسب الباقة")
+
+        checkout_text = (
+            "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
+            f"{CLIQ_INFO}\n\n"
+            f"💵 المطلوب تحويله: {price}\n\n"
+            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
+        )
+        
+        back_keyboard = [
+            [InlineKeyboardButton("⬅️ رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
+        ]
+        await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard))
+        context.user_data['waiting_for_receipt'] = True
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get('waiting_for_receipt'):
+        current_sub = context.user_data.get('current_sub', 'default')
+        receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, RECEIPT_INSTRUCTIONS['default'])
+
+        await update.message.reply_text(receipt_text)
+
+        user = update.effective_user
+        sub_name = context.user_data.get('sub_name_text', 'باقة ترفيهية')
+        dur_text = context.user_data.get('dur_text', 'غير محدد')
+        price_text = context.user_data.get('price_text', 'غير محدد')
+
+        admin_message = (
+            "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
+            f"اسم الزبون: {user.full_name}\n"
+            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
+            f"معرف الزبون (ID): {user.id}\n\n"
+            f"الخدمة / الباقة: {sub_name}\n"
+            f"المدة: {dur_text}\n"
+            f"السعر المدفوع: {price_text}\n\n"
+            f"للرد عليه وتسليمه الحساب استخدم الأمر:\n/reply {user.id} [معلومات الحساب هنا]"
+        )
+
+        try:
+            await context.bot.send_photo(
+                chat_id=ADMIN_ID,
+                photo=update.message.photo[-1].file_id,
+                caption=admin_message
+            )
+        except Exception as e:
+            print(f"Error: {e}")
+
+        context.user_data['waiting_for_receipt'] = False
+    else:
+        await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
+
+def main():
+    while True:
+        try:
+            app = ApplicationBuilder().token(TOKEN).build()
+            
+            app.add_handler(CommandHandler("start", start))
+            app.add_handler(CommandHandler("reply", admin_reply))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+            app.add_handler(CallbackQueryHandler(button_handler))
+            app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+            
+            print("962ElStore Bot is running smoothly with Built-in Self-Ping...")
+            app.run_polling(drop_pending_updates=True)
+        except Exception as e:
+            print(f"Error: {e}. Restarting in 5 seconds...")
+            time.sleep(5)
+
+if __name__ == '__main__':
+    main()
