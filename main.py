@@ -835,7 +835,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
             f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
-            f"`/reply {user.id} ضع_الرد_هنا`"
+            f"```\n/reply {user.id} ضع_الرد_هنا\n```"
         )
 
         markup = InlineKeyboardMarkup([
@@ -878,7 +878,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"السعر المدفوع: {price_text}\n\n"
             f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
-            f"`/reply {user.id} ضع_معلومات_الحساب_هنا`"
+            f"```\n/reply {user.id} ضع_معلومات_الحساب_هنا\n```"
         )
 
         markup = InlineKeyboardMarkup([
@@ -913,7 +913,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with clean Claim buttons...")
+            print("962ElStore Bot is running smoothly with Code Block copy...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
