@@ -455,6 +455,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="login_code_netflix")],
             [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="login_code_osn")],
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="login_code_disney")],
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="login_code_chatgpt")],
             [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
         ]
         await query.message.edit_text(
@@ -477,7 +478,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         p_map = {
             "netflix": "Netflix - نتفليكس",
             "osn": "OSN+ - أوس إن",
-            "disney": "Disney+ - ديزني"
+            "disney": "Disney+ - ديزني",
+            "chatgpt": "ChatGPT Plus - شات جي بي تي"
         }
         platform_name = p_map.get(p_code, "المنصة")
         context.user_data['login_code_platform'] = platform_name
@@ -784,7 +786,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         dur_text = context.user_data.get('dur_text', 'غير محدد')
         price_text = context.user_data.get('price_text', 'غير محدد')
 
-        # تم جعل الأمر جاهزاً للنسخ بضغطة واحدة داخل رسالة الأدمن
         admin_message = (
             "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
             f"اسم الزبون: {user.full_name}\n"
@@ -822,7 +823,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Easy-Copy Reply format...")
+            print("962ElStore Bot is running smoothly with ChatGPT Login Code...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
