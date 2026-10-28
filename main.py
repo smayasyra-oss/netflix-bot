@@ -201,7 +201,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(
             "📝 تم استلام البريد الإلكتروني بنجاح.\n\n"
-            "الآن، يرجى **وصف المشكلة بالتفصيل** التي تواجهك في الحساب (مثلاً: الكود لا يعمل، كلمة المرور خاطئة، تظهر رسالة خطأ...):"
+            "الآن، يرجى **وصف المشكلة بالتفصيل** (ويمكنك إرسال صورة للمشكلة إن وجدت):"
         )
         return
 
@@ -759,7 +759,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
             f"{CLIQ_INFO}\n\n"
             f"💵 المطلوب تحويله: {price}\n\n"
-            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
+            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم تفعيل باقتك فوراً!"
         )
         
         back_keyboard = [
@@ -774,6 +774,40 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_member = await check_user_channel_membership(context.bot, user.id)
     if not is_member:
         await update.message.reply_text("⚠️ يرجى الاشتراك في قناة المتجر أولاً للاستمرار: https://t.me/El962Store")
+        return
+
+    # دعم إرسال صورة المشكلة في قسم الشكاوي
+    if context.user_data.get('waiting_for_issue_description'):
+        platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
+        issue_email = context.user_data.get('issue_email', 'غير محدد')
+        
+        await update.message.reply_text(
+            "✅ **تم استلام صورة المشكلة وبلاغك بنجاح!**\n"
+            "فريق الدعم في متجر 962ElStore سيقوم بمراجعتها والرد عليك قريباً جداً ⏳"
+        )
+
+        admin_msg = (
+            "⚠️ **تنبيه: بلاغ مشكلة مع صورة من زبون!**\n\n"
+            f"👤 اسم الزبون: {user.full_name}\n"
+            f"🔗 يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
+            f"🆔 معرف الزبون: {user.id}\n\n"
+            f"📦 المنصة: {platform_name}\n"
+            f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
+            f"👇 انسخ هذا الأمر للرد:\n"
+            f"`/reply {user.id} ضع_الرد_هنا`"
+        )
+
+        try:
+            await context.bot.send_photo(
+                chat_id=ADMIN_ID,
+                photo=update.message.photo[-1].file_id,
+                caption=admin_msg,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            print(f"Error: {e}")
+
+        context.user_data['waiting_for_issue_description'] = False
         return
 
     if context.user_data.get('waiting_for_receipt'):
@@ -823,7 +857,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with ChatGPT Login Code...")
+            print("962ElStore Bot is running smoothly with Issue Photo support...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
