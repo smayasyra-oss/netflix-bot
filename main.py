@@ -39,6 +39,9 @@ ADMINS = [7983029778, 5884539860]
 SUPPORT_USERNAME = "@e962ElStore"
 CHANNEL_USERNAME = "@El962Store"
 
+# قاموس لتخزين معرفات رسائل الأدمنز لكل طلب (لكي يتم تحديثها معاً)
+active_admin_messages = {}
+
 CLIQ_INFO = (
     "🔹 معلومات الدفع عبر كليك (CliQ):\n"
     "• الاسم المستعار: XM22\n"
@@ -124,6 +127,19 @@ async def check_user_channel_membership(bot, user_id):
     except Exception as e:
         print(f"Error checking channel membership: {e}")
     return False
+
+async def send_to_all_admins(context, text, markup, photo=None):
+    admin_msgs = {}
+    for admin_id in ADMINS:
+        try:
+            if photo:
+                msg = await context.bot.send_photo(chat_id=admin_id, photo=photo, caption=text, reply_markup=markup, parse_mode="Markdown")
+            else:
+                msg = await context.bot.send_message(chat_id=admin_id, text=text, reply_markup=markup, parse_mode="Markdown")
+            admin_msgs[admin_id] = msg.message_id
+        except Exception as e:
+            print(f"Error sending to admin {admin_id}: {e}")
+    return admin_msgs
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -231,11 +247,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        for admin_id in ADMINS:
-            try:
-                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
-            except Exception as e:
-                print(f"Error: {e}")
+        msgs = await send_to_all_admins(context, admin_msg, markup)
+        active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_issue_description'] = False
         return
@@ -264,11 +277,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        for admin_id in ADMINS:
-            try:
-                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
-            except Exception as e:
-                print(f"Error: {e}")
+        msgs = await send_to_all_admins(context, admin_msg, markup)
+        active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_netflix_household_email'] = False
         return
@@ -299,11 +309,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        for admin_id in ADMINS:
-            try:
-                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
-            except Exception as e:
-                print(f"Error: {e}")
+        msgs = await send_to_all_admins(context, admin_msg, markup)
+        active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_login_code_email'] = False
         return
@@ -403,22 +410,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data.startswith("claim_"):
         parts = data.split("_")
-        claimer = "محمد 🟢" if parts[1] == "m" else "حسام 🟢"
+        claimer_code = parts[1]
+        target_user_id = parts[2]
+        claimer_name = "محمد 🟢" if claimer_code == "m" else "حسام 🟢"
         
-        try:
-            if query.message.caption:
-                old_text = query.message.caption
-                new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer}")
-                await query.message.edit_caption(caption=new_text, parse_mode="Markdown", reply_markup=None)
-            else:
-                old_text = query.message.text
-                new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer}")
-                await query.message.edit_text(text=new_text, parse_mode="Markdown", reply_markup=None)
+        # جلب معرفات رسائل الأدمنز لهذا الطلب
+        admin_msgs = active_admin_messages.get(target_user_id, {})
+        
+        for admin_id, msg_id in admin_msgs.items():
+            try:
+                # محاولة جلب الرسالة لتعديلها سواء كانت نصاً أو صورة
+                try:
+                    msg = await context.bot.get_message(chat_id=admin_id, message_id=msg_id)
+                except Exception:
+                    msg = None
+
+                if msg:
+                    if msg.caption:
+                        old_text = msg.caption
+                        new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        await context.bot.edit_message_caption(chat_id=admin_id, message_id=msg_id, caption=new_text, parse_mode="Markdown", reply_markup=None)
+                    else:
+                        old_text = msg.text
+                        new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        await context.bot.edit_message_text(chat_id=admin_id, message_id=msg_id, text=new_text, parse_mode="Markdown", reply_markup=None)
+            except Exception as e:
+                print(f"Error updating admin {admin_id} message: {e}")
                 
-            await query.answer(f"✅ تم استلام الطلب بنجاح يا {claimer.split()[0]}!")
-        except Exception as e:
-            print(f"Error claiming order: {e}")
-            await query.answer(f"✅ تم تسجيل استلام الطلب بواسطة {claimer.split()[0]}!", show_alert=True)
+        await query.answer(f"✅ تم استلام الطلب بنجاح بواسطة {claimer_name.split()[0]}!")
         return
 
     if data == "verify_subscription":
@@ -842,14 +861,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         try:
-            for admin_id in ADMINS:
-                await context.bot.send_photo(
-                    chat_id=admin_id,
-                    photo=update.message.photo[-1].file_id,
-                    caption=admin_msg,
-                    reply_markup=markup,
-                    parse_mode="Markdown"
-                )
+            msgs = await send_to_all_admins(context, admin_msg, markup, photo=update.message.photo[-1].file_id)
+            active_admin_messages[str(user.id)] = msgs
         except Exception as e:
             print(f"Error: {e}")
 
@@ -885,14 +898,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         try:
-            for admin_id in ADMINS:
-                await context.bot.send_photo(
-                    chat_id=admin_id,
-                    photo=update.message.photo[-1].file_id,
-                    caption=admin_message,
-                    reply_markup=markup,
-                    parse_mode="Markdown"
-                )
+            msgs = await send_to_all_admins(context, admin_message, markup, photo=update.message.photo[-1].file_id)
+            active_admin_messages[str(user.id)] = msgs
         except Exception as e:
             print(f"Error: {e}")
 
@@ -911,7 +918,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with fixed Claim handler...")
+            print("962ElStore Bot is running smoothly with Synced Admin Messages...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
