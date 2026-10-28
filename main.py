@@ -52,7 +52,7 @@ RECEIPT_INSTRUCTIONS = {
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
         "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول قريباً:\n"
-        "⚠️ تنبيه هام: يرجى الالتزام بعدم فتح الحساب على أجهزة أكثر من المسموح به لضمان استمرار ضمانك!"
+        "⚠️ تنبيه هام: يرجى الالتزام بعدم فتح الحساب على أكثر من جهاز لضمان استمرار ضمانك!"
     ),
     "netflix": (
         "✅ تم استلام صورة الإيصال بنجاح!\n"
@@ -95,6 +95,12 @@ RECEIPT_INSTRUCTIONS = {
         "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
         "• يرجى استخدام رقم تلفون و باسورد لتسجيل الدخول.\n"
         "⚠️ تنبيه هام: الحساب يعمل على جهازين FHD كحد أقصى."
+    ),
+    "chatgpt": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT Plus وتفاصيل تفعيله فوراً:\n"
+        "⚠️ تنبيه هام: الحساب مخصص لك وحدك لضمان استقرار الخدمة واستمرارية العمل!"
     )
 }
 
@@ -110,7 +116,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     welcome_text = (
         "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
-        "كل اللي تحبه من عالم الترفيه بأسرار مميزة وأسعار منافسة 🎬🍿\n\n"
+        "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
         f"رقمك التعريفي: {user.id}\n"
         f"الاسم: {user.full_name}\n\n"
         "اختر من القائمة أدناه للبدء:"
@@ -243,7 +249,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
+            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt")]
         ]
         await update.message.reply_text(
             "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
@@ -252,13 +259,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif text == "🔥 عروض التوفير الكبرى":
         bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً (4 JD)", callback_data="bundle_init_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (5 JD)", callback_data="bundle_init_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
+            [InlineKeyboardButton("👥 عرض منصتين معاً (5 JD)", callback_data="bundle_init_2")],
+            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (6 JD)", callback_data="bundle_init_3")],
+            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (8 JD)", callback_data="bundle_init_4")]
         ]
         await update.message.reply_text(
             "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
-            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
+            "اجمع منصاتك المفضلة (بما فيها ChatGPT Plus) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
             reply_markup=InlineKeyboardMarkup(bundles_keyboard)
         )
         
@@ -279,7 +286,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="issue_osn")],
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="issue_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="issue_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="issue_tod")]
+            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="issue_tod")],
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="issue_chatgpt")]
         ]
         await update.message.reply_text(
             "⚠️ **قسم الإبلاغ عن مشكلة في الحساب:**\n\nاختر المنصة التي تواجه مشكلة فيها:",
@@ -296,13 +304,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(support_text)
 
-def get_selection_keyboard(selected_list, target_count):
+def get_bundle_selection_keyboard(selected_list, target_count):
     platforms = [
         ("netflix", "🎬 Netflix - نتفليكس"),
         ("shahid", "📺 Shahid VIP - شاهد"),
         ("osn", "🎥 OSN+ - أوس إن"),
         ("disney", "✨ Disney+ - ديزني"),
-        ("noor", "🌙 Noor Play - نور بلاي")
+        ("noor", "🌙 Noor Play - نور بلاي"),
+        ("chatgpt", "🤖 ChatGPT Plus - شات جي بي تي")
     ]
     
     keyboard = []
@@ -334,7 +343,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "osn": "OSN+ - أوس إن",
             "disney": "Disney+ - ديزني",
             "noor": "Noor Play - نور بلاي",
-            "tod": "TOD - تود"
+            "tod": "TOD - تود",
+            "chatgpt": "ChatGPT Plus - شات جي بي تي"
         }
         platform_name = p_map.get(p_code, "المنصة")
         context.user_data['issue_platform'] = platform_name
@@ -354,7 +364,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")]
+            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
+            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt")]
         ]
         await query.message.edit_text(
             "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
@@ -363,13 +374,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "back_to_bundles":
         bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً (4 JD)", callback_data="bundle_init_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (5 JD)", callback_data="bundle_init_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (6 JD)", callback_data="bundle_init_4")]
+            [InlineKeyboardButton("👥 عرض منصتين معاً (5 JD)", callback_data="bundle_init_2")],
+            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (6 JD)", callback_data="bundle_init_3")],
+            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (8 JD)", callback_data="bundle_init_4")]
         ]
         await query.message.edit_text(
             "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
-            "اجمع منصاتك المفضلة (نتفليكس، شاهد، ديزني، نور بلاي، أو إس إن) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
+            "اجمع منصاتك المفضلة (بما فيها ChatGPT Plus) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
             reply_markup=InlineKeyboardMarkup(bundles_keyboard)
         )
 
@@ -435,7 +446,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "osn": ("🎥 اشتراك OSN+ - أوس إن (جهاز واحد)", "pkg_osn"),
             "disney": ("✨ اشتراك Disney+ - ديزني (جهاز واحد)", "pkg_disney"),
             "noor": ("🌙 اشتراك Noor Play - نور بلاي (جهاز واحد)", "pkg_noor"),
-            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod")
+            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod"),
+            "chatgpt": ("🤖 اشتراك ChatGPT Plus - شات جي بي تي (حساب خاص)", "pkg_chatgpt")
         }
         title, prefix = details_map[sub_type]
         
@@ -443,6 +455,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [
                 [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data=f"{prefix}_1m")],
                 [InlineKeyboardButton("🟢 3 أشهر (9 JD)", callback_data=f"{prefix}_3m")],
+                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
+            ]
+        elif sub_type == "chatgpt":
+            kb = [
+                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data=f"{prefix}_1m")],
                 [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
             ]
         else:
@@ -462,10 +479,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['bundle_type'] = f"b{count}"
 
         text = (
-            f"🎯 اختر {count} منصات تفضلها من القائمة أدناه:\n"
+            f"🎯 اختر {count} منصات تفضلها من القائمة أدناه (تشمل ChatGPT Plus):\n"
             "(كلما تضغط على منصة سيتم تفعيلها بـ ✅، وعند إتمام اختيارك سيظهر زر المتابعة)"
         )
-        kb = get_selection_keyboard([], count)
+        kb = get_bundle_selection_keyboard([], count)
         await query.message.edit_text(text, reply_markup=kb)
 
     elif data.startswith("sel_"):
@@ -481,7 +498,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
             f"تم اختيار ({len(selected)} من {target})"
         )
-        kb = get_selection_keyboard(selected, target)
+        kb = get_bundle_selection_keyboard(selected, target)
         await query.message.edit_text(text, reply_markup=kb)
 
     elif data.startswith("unsel_"):
@@ -497,37 +514,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
             f"تم اختيار ({len(selected)} من {target})"
         )
-        kb = get_selection_keyboard(selected, target)
+        kb = get_bundle_selection_keyboard(selected, target)
         await query.message.edit_text(text, reply_markup=kb)
 
     elif data == "proceed_to_duration":
         b_type = context.user_data.get('bundle_type', 'b2')
         
         if b_type == "b2":
-            text = "👥 عرض منصتين معاً (4 JD للشهر)\nاختر المدة المطلوبة:"
+            text = "👥 عرض منصتين معاً (5 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (4 JD)", callback_data="pkg_b2_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (8 JD)", callback_data="pkg_b2_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (15 JD)", callback_data="pkg_b2_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (25 JD)", callback_data="pkg_b2_1y")],
+                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b2_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b2_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_b2_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (38 JD)", callback_data="pkg_b2_1y")],
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_2")]
             ]
         elif b_type == "b3":
-            text = "⭐ عرض الـ 3 منصات (5 JD للشهر)\nاختر المدة المطلوبة:"
+            text = "⭐ عرض الـ 3 منصات (6 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b3_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (10 JD)", callback_data="pkg_b3_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (18 JD)", callback_data="pkg_b3_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (30 JD)", callback_data="pkg_b3_1y")],
+                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b3_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (15 JD)", callback_data="pkg_b3_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (28 JD)", callback_data="pkg_b3_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (48 JD)", callback_data="pkg_b3_1y")],
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_3")]
             ]
         else:
-            text = "💎 عرض الـ 4 منصات معاً - الباكج الشامل (6 JD للشهر)\nاختر المدة المطلوبة:"
+            text = "💎 عرض الـ 4 منصات معاً - الباكج الشامل (8 JD للشهر)\nاختر المدة المطلوبة:"
             kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b4_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b4_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_b4_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (35 JD)", callback_data="pkg_b4_1y")],
+                [InlineKeyboardButton("🟢 شهر واحد (8 JD)", callback_data="pkg_b4_1m")],
+                [InlineKeyboardButton("🟢 3 أشهر (20 JD)", callback_data="pkg_b4_3m")],
+                [InlineKeyboardButton("🟢 6 أشهر (36 JD)", callback_data="pkg_b4_6m")],
+                [InlineKeyboardButton("🟢 سنة كاملة (60 JD)", callback_data="pkg_b4_1y")],
                 [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_4")]
             ]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb))
@@ -545,7 +562,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "osn": "OSN+",
             "disney": "Disney+",
             "noor": "Noor Play",
-            "tod": "TOD"
+            "tod": "TOD",
+            "chatgpt": "ChatGPT Plus"
         }
 
         if sub_type.startswith("b"):
@@ -563,17 +581,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sub_name = p_names.get(sub_type, "اشتراك رقمي")
 
         if sub_type == "b2":
-            prices = {"1m": "4 دنانير", "3m": "8 دنانير", "6m": "15 دينار", "1y": "25 دينار"}
+            prices = {"1m": "5 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "38 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
         elif sub_type == "b3":
-            prices = {"1m": "5 دنانير", "3m": "10 دنانير", "6m": "18 دينار", "1y": "30 دينار"}
+            prices = {"1m": "6 دنانير", "3m": "15 دينار", "6m": "28 دينار", "1y": "48 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
         elif sub_type == "b4":
-            prices = {"1m": "6 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "35 دينار"}
+            prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر"}
+        elif sub_type == "chatgpt":
+            prices = {"1m": "5 دنانير"}
+            dur_map = {"1m": "شهر واحد"}
         else:
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
@@ -610,13 +631,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         duration = parts[2]
 
         if sub_type == "b2":
-            prices = {"1m": "4 دنانير", "3m": "8 دنانير", "6m": "15 دينار", "1y": "25 دينار"}
+            prices = {"1m": "5 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "38 دينار"}
         elif sub_type == "b3":
-            prices = {"1m": "5 دنانير", "3m": "10 دنانير", "6m": "18 دينار", "1y": "30 دينار"}
+            prices = {"1m": "6 دنانير", "3m": "15 دينار", "6m": "28 دينار", "1y": "48 دينار"}
         elif sub_type == "b4":
-            prices = {"1m": "6 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "35 دينار"}
+            prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
+        elif sub_type == "chatgpt":
+            prices = {"1m": "5 دنانير"}
         else:
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
 
@@ -682,7 +705,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Built-in Self-Ping...")
+            print("962ElStore Bot is running smoothly with ChatGPT Plus in Bundles...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
