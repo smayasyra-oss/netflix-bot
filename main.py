@@ -39,7 +39,7 @@ threading.Thread(target=self_ping, daemon=True).start()
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
 ADMIN_ID = 7983029778
 SUPPORT_USERNAME = "@e962ElStore"
-CHANNEL_USERNAME = "@El962Store"  # يوزر القناة للتحقق من الاشتراك
+CHANNEL_USERNAME = "@El962Store"
 
 CLIQ_INFO = (
     "🔹 معلومات الدفع عبر كليك (CliQ):\n"
@@ -87,7 +87,7 @@ RECEIPT_INSTRUCTIONS = {
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
         "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
+        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول:\n"
         "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
     ),
     "tod": (
@@ -100,8 +100,7 @@ RECEIPT_INSTRUCTIONS = {
     "chatgpt_shared": (
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات حساب ChatGPT المشترك فوراً:\n"
-        "⚠️ تنبيه هام: للباقات طويلة الأجل (3 أشهر، 6 أشهر، سنة)، يرجى العلم أنه يتم تزويدك بكل شهر بإيميل مختلف لضمان استمرارية الضمان!"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT المشترك فوراً."
     ),
     "chatgpt_private": (
         "✅ تم استلام صورة الإيصال بنجاح!\n"
@@ -119,11 +118,9 @@ def get_main_menu():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-# دالة التحقق من اشتراك المستخدم في القناة
 async def check_user_channel_membership(bot, user_id):
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        # إذا كان منضم أو مشرف أو مالك
         if member.status in ['member', 'administrator', 'creator']:
             return True
     except Exception as e:
@@ -132,12 +129,9 @@ async def check_user_channel_membership(bot, user_id):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    
-    # التحقق هل اشترك بالقناة أم لا
     is_member = await check_user_channel_membership(context.bot, user.id)
     
     if not is_member:
-        # إرسال رسالة طلب الاشتراك مع زر القناة وزر التحقق
         join_keyboard = [
             [InlineKeyboardButton("📢 اشترك في القناة الآن", url="https://t.me/El962Store")],
             [InlineKeyboardButton("✅ لقد اشتريت / اشتركت، تحقق الآن", callback_data="verify_subscription")]
@@ -152,7 +146,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # إذا كان مشتركاً بالفعل، يفتح البوت بشكل طبيعي
     welcome_text = (
         "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
         "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
@@ -186,7 +179,6 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
-    # حماية إضافية: التأكد أنه مشترك بالقناة قبل الرد على أي رسالة نصية
     is_member = await check_user_channel_membership(context.bot, user.id)
     if not is_member:
         join_keyboard = [
@@ -227,11 +219,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ **تنبيه: بلاغ مشكلة جديدة في حساب زبون!**\n\n"
             f"👤 اسم الزبون: {user.full_name}\n"
             f"🔗 يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون (ID): {user.id}\n\n"
+            f"🆔 معرف الزبون: {user.id}\n\n"
             f"📦 المنصة: {platform_name}\n"
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
             f"📝 وصف المشكلة:\n{issue_desc}\n\n"
-            f"💡 للرد عليه وحل مشكلته استخدم الأمر:\n`/reply {user.id} [ردك أو الحل هنا]`"
+            f"👇 انسخ هذا الأمر للرد:\n"
+            f"`/reply {user.id} ضع_الرد_هنا`"
         )
         
         try:
@@ -254,13 +247,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🏠 طلب كود سكن نتفليكس (Household Code)!\n\n"
             f"اسم الزبون: {user.full_name}\n"
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"معرف الزبون (ID): {user.id}\n\n"
+            f"🆔 معرف الزبون: {user.id}\n\n"
             f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
-            f"للرد عليه استخدم الأمر:\n/reply {user.id} [الكود هنا]"
+            f"👇 انسخ هذا الأمر للرد:\n"
+            f"`/reply {user.id} ضع_الكود_هنا`"
         )
         
         try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
         except Exception as e:
             print(f"Error: {e}")
 
@@ -280,14 +274,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔑 طلب كود تسجيل دخول جديد!\n\n"
             f"اسم الزبون: {user.full_name}\n"
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"معرف الزبون (ID): {user.id}\n\n"
+            f"🆔 معرف الزبون: {user.id}\n\n"
             f"المنصة: {platform_name}\n"
             f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
-            f"للرد عليه استخدم الأمر:\n/reply {user.id} [الكود هنا]"
+            f"👇 انسخ هذا الأمر للرد:\n"
+            f"`/reply {user.id} ضع_الكود_هنا`"
         )
         
         try:
-            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+            await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
         except Exception as e:
             print(f"Error: {e}")
 
@@ -387,7 +382,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     data = query.data
 
-    # معالجة زر التحقق من الاشتراك بالقناة
     if data == "verify_subscription":
         is_member = await check_user_channel_membership(context.bot, user.id)
         if is_member:
@@ -763,12 +757,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
             f"{CLIQ_INFO}\n\n"
             f"💵 المطلوب تحويله: {price}\n\n"
+            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         )
-
-        if sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
-            checkout_text += "⚠️ **ملاحظة تذكيرية:** الاشتراكات المشتركة (3 أشهر، 6 أشهر، سنة) يتم إعطاؤك إيميل مختلف لكل شهر.\n\n"
-
-        checkout_text += "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) لنقابة الإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
         
         back_keyboard = [
             [InlineKeyboardButton("⬅️ رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
@@ -779,7 +769,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
-    # التأكد من اشتراكه بالقناة أيضاً عند إرسال الإيصال
     is_member = await check_user_channel_membership(context.bot, user.id)
     if not is_member:
         await update.message.reply_text("⚠️ يرجى الاشتراك في قناة المتجر أولاً للاستمرار: https://t.me/El962Store")
@@ -795,22 +784,25 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         dur_text = context.user_data.get('dur_text', 'غير محدد')
         price_text = context.user_data.get('price_text', 'غير محدد')
 
+        # تم جعل الأمر جاهزاً للنسخ بضغطة واحدة داخل رسالة الأدمن
         admin_message = (
             "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
             f"اسم الزبون: {user.full_name}\n"
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون (ID): {user.id}\n\n"
+            f"🆔 معرف الزبون: {user.id}\n\n"
             f"الخدمة / الباقة: {sub_name}\n"
             f"المدة: {dur_text}\n"
             f"السعر المدفوع: {price_text}\n\n"
-            f"للرد عليه وتسليمه الحساب استخدم الأمر:\n/reply {user.id} [معلومات الحساب هنا]"
+            f"👇 انسخ هذا الأمر للرد:\n"
+            f"`/reply {user.id} ضع_معلومات_الحساب_هنا`"
         )
 
         try:
             await context.bot.send_photo(
                 chat_id=ADMIN_ID,
                 photo=update.message.photo[-1].file_id,
-                caption=admin_message
+                caption=admin_message,
+                parse_mode="Markdown"
             )
         except Exception as e:
             print(f"Error: {e}")
@@ -830,7 +822,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Channel Force-Subscribe...")
+            print("962ElStore Bot is running smoothly with Easy-Copy Reply format...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
