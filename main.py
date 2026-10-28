@@ -127,16 +127,6 @@ async def check_user_channel_membership(bot, user_id):
         print(f"Error checking channel membership: {e}")
     return False
 
-async def broadcast_to_admins(context, text, reply_markup=None, photo=None):
-    for admin_id in ADMINS:
-        try:
-            if photo:
-                await context.bot.send_photo(chat_id=admin_id, photo=photo, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
-            else:
-                await context.bot.send_message(chat_id=admin_id, text=text, reply_markup=reply_markup, parse_mode="Markdown")
-        except Exception as e:
-            print(f"Error sending to admin {admin_id}: {e}")
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     is_member = await check_user_channel_membership(context.bot, user.id)
@@ -233,7 +223,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📦 المنصة: {platform_name}\n"
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
             f"📝 وصف المشكلة:\n{issue_desc}\n\n"
-            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
+            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الرد_هنا`"
         )
@@ -243,7 +233,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
         ])
         
-        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
+        for admin_id in ADMINS:
+            try:
+                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
+            except Exception as e:
+                print(f"Error: {e}")
+
         context.user_data['waiting_for_issue_description'] = False
         return
 
@@ -261,7 +256,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
-            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
+            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الكود_هنا`"
         )
@@ -271,7 +266,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
         ])
         
-        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
+        for admin_id in ADMINS:
+            try:
+                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
+            except Exception as e:
+                print(f"Error: {e}")
+
         context.user_data['waiting_for_netflix_household_email'] = False
         return
 
@@ -291,7 +291,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"المنصة: {platform_name}\n"
             f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
-            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
+            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الكود_هنا`"
         )
@@ -301,7 +301,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
         ])
         
-        await broadcast_to_admins(context, admin_msg, reply_markup=markup)
+        for admin_id in ADMINS:
+            try:
+                await context.bot.send_message(chat_id=admin_id, text=admin_msg, reply_markup=markup, parse_mode="Markdown")
+            except Exception as e:
+                print(f"Error: {e}")
+
         context.user_data['waiting_for_login_code_email'] = False
         return
 
@@ -398,25 +403,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     data = query.data
 
-    # معالجة أزرار استلام الطلبات بين محمد وحسام
     if data.startswith("claim_"):
         parts = data.split("_")
         claimer = "محمد 🟢" if parts[1] == "mohammad" else "حسام 🟢"
         
         try:
-            old_caption = query.message.caption or query.message.text
-            new_text = old_caption.replace("🟢 **حالة الطلب:** لم يتم الاستلام بعد", f"🔥 **قيد المعالجة حالياً بواسطة:** {claimer}")
-            
-            # تحديث الرسالة عند كلا الأدمنز إن أمكن أو تعديل الرسالة الحالية
-            if query.message.photo:
+            if query.message.caption:
+                old_text = query.message.caption
+                new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer}")
                 await query.message.edit_caption(caption=new_text, parse_mode="Markdown", reply_markup=None)
             else:
+                old_text = query.message.text
+                new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer}")
                 await query.message.edit_text(text=new_text, parse_mode="Markdown", reply_markup=None)
                 
-            await query.answer(f"✅ تم تسجيل أنك استلمت الطلب يا {claimer.split()[0]}!")
+            await query.answer(f"✅ تم استلام الطلب بنجاح يا {claimer.split()[0]}!")
         except Exception as e:
             print(f"Error claiming order: {e}")
-            await query.answer("تم استلام الطلب مسبقاً أو حدث تحديث.", show_alert=True)
+            await query.answer("تم استلام الطلب مسبقاً.", show_alert=True)
         return
 
     if data == "verify_subscription":
@@ -829,7 +833,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 معرف الزبون: {user.id}\n\n"
             f"📦 المنصة: {platform_name}\n"
             f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
-            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
+            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_الرد_هنا`"
         )
@@ -872,7 +876,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"الخدمة / الباقة: {sub_name}\n"
             f"المدة: {dur_text}\n"
             f"السعر المدفوع: {price_text}\n\n"
-            f"🟢 **حالة الطلب:** لم يتم الاستلام بعد\n\n"
+            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
             f"`/reply {user.id} ضع_معلومات_الحساب_هنا`"
         )
@@ -909,7 +913,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Multi-Admin Claim system...")
+            print("962ElStore Bot is running smoothly with clean Claim buttons...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
