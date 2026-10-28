@@ -22,7 +22,6 @@ def home():
 def run_web():
     web_app.run(host="0.0.0.0", port=8080)
 
-# دالة لتنشيط البوت ذاتياً لمنع السبات باستخدام مكتبة مدمجة
 def self_ping():
     while True:
         try:
@@ -30,14 +29,13 @@ def self_ping():
             print("Self-ping sent successfully to keep bot alive!")
         except Exception as e:
             print(f"Self-ping failed: {e}")
-        time.sleep(240)  # كل 4 دقائق
+        time.sleep(240)
 
 threading.Thread(target=run_web, daemon=True).start()
 threading.Thread(target=self_ping, daemon=True).start()
 
-# التوكن ومعرفات الأدمن (محمد وحسام) ومعرف القناة
 TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
-ADMINS = [7983029778, 5884539860]  # [محمد، حسام]
+ADMINS = [7983029778, 5884539860]
 SUPPORT_USERNAME = "@e962ElStore"
 CHANNEL_USERNAME = "@El962Store"
 
@@ -225,12 +223,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📝 وصف المشكلة:\n{issue_desc}\n\n"
             f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
-            f"`/reply {user.id} ضع_الرد_هنا`"
+            f"```\n/reply {user.id} ضع_الرد_هنا\n```"
         )
         
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
         for admin_id in ADMINS:
@@ -258,12 +256,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
             f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
-            f"`/reply {user.id} ضع_الكود_هنا`"
+            f"```\n/reply {user.id} ضع_الكود_هنا\n```"
         )
         
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
         for admin_id in ADMINS:
@@ -293,12 +291,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
             f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
             f"👇 انسخ هذا الأمر للرد:\n"
-            f"`/reply {user.id} ضع_الكود_هنا`"
+            f"```\n/reply {user.id} ضع_الكود_هنا\n```"
         )
         
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
         for admin_id in ADMINS:
@@ -405,7 +403,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data.startswith("claim_"):
         parts = data.split("_")
-        claimer = "محمد 🟢" if parts[1] == "mohammad" else "حسام 🟢"
+        claimer = "محمد 🟢" if parts[1] == "m" else "حسام 🟢"
         
         try:
             if query.message.caption:
@@ -420,7 +418,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(f"✅ تم استلام الطلب بنجاح يا {claimer.split()[0]}!")
         except Exception as e:
             print(f"Error claiming order: {e}")
-            await query.answer("تم استلام الطلب مسبقاً.", show_alert=True)
+            await query.answer(f"✅ تم تسجيل استلام الطلب بواسطة {claimer.split()[0]}!", show_alert=True)
         return
 
     if data == "verify_subscription":
@@ -839,8 +837,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
 
         try:
@@ -882,8 +880,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_mohammad_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_hossam_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
+             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
 
         try:
@@ -913,7 +911,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Code Block copy...")
+            print("962ElStore Bot is running smoothly with fixed Claim handler...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
