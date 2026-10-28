@@ -39,7 +39,7 @@ ADMINS = [7983029778, 5884539860]
 SUPPORT_USERNAME = "@e962ElStore"
 CHANNEL_USERNAME = "@El962Store"
 
-# قاموس لتخزين معرفات رسائل الأدمنز لكل طلب (لكي يتم تحديثها معاً)
+# قاموس لتخزين معلومات الرسائل لكل أدمن لكل زبون
 active_admin_messages = {}
 
 CLIQ_INFO = (
@@ -128,7 +128,7 @@ async def check_user_channel_membership(bot, user_id):
         print(f"Error checking channel membership: {e}")
     return False
 
-async def send_to_all_admins(context, text, markup, photo=None):
+async def send_order_to_admins(context, text, markup, photo=None):
     admin_msgs = {}
     for admin_id in ADMINS:
         try:
@@ -247,7 +247,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        msgs = await send_to_all_admins(context, admin_msg, markup)
+        msgs = await send_order_to_admins(context, admin_msg, markup)
         active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_issue_description'] = False
@@ -277,7 +277,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        msgs = await send_to_all_admins(context, admin_msg, markup)
+        msgs = await send_order_to_admins(context, admin_msg, markup)
         active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_netflix_household_email'] = False
@@ -309,7 +309,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
         ])
         
-        msgs = await send_to_all_admins(context, admin_msg, markup)
+        msgs = await send_order_to_admins(context, admin_msg, markup)
         active_admin_messages[str(user.id)] = msgs
 
         context.user_data['waiting_for_login_code_email'] = False
@@ -414,12 +414,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_user_id = parts[2]
         claimer_name = "محمد 🟢" if claimer_code == "m" else "حسام 🟢"
         
-        # جلب معرفات رسائل الأدمنز لهذا الطلب
         admin_msgs = active_admin_messages.get(target_user_id, {})
         
         for admin_id, msg_id in admin_msgs.items():
             try:
-                # محاولة جلب الرسالة لتعديلها سواء كانت نصاً أو صورة
                 try:
                     msg = await context.bot.get_message(chat_id=admin_id, message_id=msg_id)
                 except Exception:
@@ -428,11 +426,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if msg:
                     if msg.caption:
                         old_text = msg.caption
-                        new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        # استبدال سطر الحالة بشكل مباشر لضمان التحديث الأكيد
+                        if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
+                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        else:
+                            new_text = old_text + f"\n\n🔥 قيد المعالجة حالياً بواسطة: {claimer_name}"
+                        
                         await context.bot.edit_message_caption(chat_id=admin_id, message_id=msg_id, caption=new_text, parse_mode="Markdown", reply_markup=None)
                     else:
                         old_text = msg.text
-                        new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
+                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                        else:
+                            new_text = old_text + f"\n\n🔥 قيد المعالجة حالياً بواسطة: {claimer_name}"
+                            
                         await context.bot.edit_message_text(chat_id=admin_id, message_id=msg_id, text=new_text, parse_mode="Markdown", reply_markup=None)
             except Exception as e:
                 print(f"Error updating admin {admin_id} message: {e}")
@@ -861,7 +868,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         try:
-            msgs = await send_to_all_admins(context, admin_msg, markup, photo=update.message.photo[-1].file_id)
+            msgs = await send_order_to_admins(context, admin_msg, markup, photo=update.message.photo[-1].file_id)
             active_admin_messages[str(user.id)] = msgs
         except Exception as e:
             print(f"Error: {e}")
@@ -898,7 +905,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         try:
-            msgs = await send_to_all_admins(context, admin_message, markup, photo=update.message.photo[-1].file_id)
+            msgs = await send_order_to_admins(context, admin_message, markup, photo=update.message.photo[-1].file_id)
             active_admin_messages[str(user.id)] = msgs
         except Exception as e:
             print(f"Error: {e}")
@@ -918,7 +925,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Synced Admin Messages...")
+            print("962ElStore Bot is running smoothly with Direct Text Replacement...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
