@@ -34,8 +34,9 @@ def self_ping():
 threading.Thread(target=run_web, daemon=True).start()
 threading.Thread(target=self_ping, daemon=True).start()
 
-TOKEN = "8600844088:AAGWB9gpw3ETz0R0hGQxOmmGVVW9bAGmFls"
-ADMINS = [7983029778, 5884539860]
+# التوكن الجديد المحدث
+TOKEN = "8600844088:AAFBIz-s7TDJ6PE_Op8lyXcnLVcY22ACWzg"
+ADMINS = [7983029778, 5884539860]  # [محمد، حسام]
 SUPPORT_USERNAME = "@e962ElStore"
 CHANNEL_USERNAME = "@El962Store"
 
@@ -242,9 +243,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"```\n/reply {user.id} ضع_الرد_هنا\n```"
         )
         
+        # زر استلام واحد مشترك لـ محمد وحسام
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
         
         msgs = await send_order_to_admins(context, admin_msg, markup)
@@ -273,8 +274,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
         
         msgs = await send_order_to_admins(context, admin_msg, markup)
@@ -305,8 +305,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
         
         msgs = await send_order_to_admins(context, admin_msg, markup)
@@ -409,11 +408,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data.startswith("claim_"):
-        parts = data.split("_")
-        claimer_code = parts[1]
-        target_user_id = parts[2]
-        claimer_name = "محمد 🟢" if claimer_code == "m" else "حسام 🟢"
+        target_user_id = data.split("_")[1]
         
+        # تحديد اسم الأدمن الذي ضغط على الزر تلقائياً بناءً على الـ ID الخاص به
+        if user.id == 7983029778:
+            claimer_name = "محمد 🟢"
+        elif user.id == 5884539860:
+            claimer_name = "حسام 🟢"
+        else:
+            claimer_name = user.full_name
+
         admin_msgs = active_admin_messages.get(target_user_id, {})
         
         for admin_id, msg_id in admin_msgs.items():
@@ -426,25 +430,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if msg:
                     if msg.caption:
                         old_text = msg.caption
-                        # استبدال سطر الحالة بشكل مباشر لضمان التحديث الأكيد
                         if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
-                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 تم استلام الطلب بواسطة: {claimer_name}")
                         else:
-                            new_text = old_text + f"\n\n🔥 قيد المعالجة حالياً بواسطة: {claimer_name}"
+                            new_text = old_text + f"\n\n🔥 تم استلام الطلب بواسطة: {claimer_name}"
                         
                         await context.bot.edit_message_caption(chat_id=admin_id, message_id=msg_id, caption=new_text, parse_mode="Markdown", reply_markup=None)
                     else:
                         old_text = msg.text
                         if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
-                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 قيد المعالجة حالياً بواسطة: {claimer_name}")
+                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 تم استلام الطلب بواسطة: {claimer_name}")
                         else:
-                            new_text = old_text + f"\n\n🔥 قيد المعالجة حالياً بواسطة: {claimer_name}"
+                            new_text = old_text + f"\n\n🔥 تم استلام الطلب بواسطة: {claimer_name}"
                             
                         await context.bot.edit_message_text(chat_id=admin_id, message_id=msg_id, text=new_text, parse_mode="Markdown", reply_markup=None)
             except Exception as e:
                 print(f"Error updating admin {admin_id} message: {e}")
                 
-        await query.answer(f"✅ تم استلام الطلب بنجاح بواسطة {claimer_name.split()[0]}!")
+        await query.answer(f"✅ تم تسجيل استلام الطلب بواسطة {claimer_name.split()[0]}!")
         return
 
     if data == "verify_subscription":
@@ -863,8 +866,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
 
         try:
@@ -900,8 +902,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام (محمد)", callback_data=f"claim_m_{user.id}"),
-             InlineKeyboardButton("🙋‍♂️ استلام (حسام)", callback_data=f"claim_h_{user.id}")]
+            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
 
         try:
@@ -925,7 +926,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Direct Text Replacement...")
+            print("962ElStore Bot is running smoothly with Single Claim Button...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
