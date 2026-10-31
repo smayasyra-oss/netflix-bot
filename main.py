@@ -1,47 +1,107 @@
+import os
 import logging
 import threading
 import time
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from flask import Flask
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
-import sqlite3
+import db as database
 
-# إعداد السجلات
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+log = logging.getLogger("962ElStore")
 
-# إعداد خادم الويب لـ Render
-web_app = Flask(__name__)
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise RuntimeError("أضف BOT_TOKEN في Render Environment")
 
-RENDER_URL = "https://netflix-bot-8p4c.onrender.com"
+ADMINS = [
+    int(x.strip())
+    for x in os.getenv("ADMIN_IDS", "7983029778,5884539860").split(",")
+    if x.strip()
+]
 
-@web_app.route('/')
-def home():
-    return "962ElStore Bot is active and running 24/7!"
+CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@El962Store")
+SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "@e962ElStore")
+RENDER_URL = os.getenv(
+    "RENDER_EXTERNAL_URL",
+    "https://netflix-bot-8p4c.onrender.com"
+)
 
-def run_web():
-    web_app.run(host="0.0.0.0", port=8080)
-
-def self_ping():
-    while True:
-        try:
-            urllib.request.urlopen(RENDER_URL)
-            print("Self-ping sent successfully to keep bot alive!")
-        except Exception as e:
-            print(f"Self-ping failed: {e}")
-        time.sleep(240)
-
-threading.Thread(target=run_web, daemon=True).start()
-threading.Thread(target=self_ping, daemon=True).start()
-
-# التوكن الجديد المحدث
-TOKEN = "8600844088:AAFBIz-s7TDJ6PE_Op8lyXcnLVcY22ACWzg"
-ADMINS = [7983029778, 5884539860]  # [محمد، حسام]
-SUPPORT_USERNAME = "@e962ElStore"
-CHANNEL_USERNAME = "@El962Store"
-
-# قاموس لتخزين معلومات الرسائل لكل أدمن لكل زبون
-active_admin_messages = {}
+RECEIPT_INSTRUCTIONS = {
+    "default": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول قريباً:\n"
+        "⚠️ يرجى الالتزام بعدم فتح الحساب على أكثر من جهاز لضمان استمرار ضمانك!"
+    ),
+    "netflix": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
+        "• يرجى إدخال البريد الإلكتروني، ثم الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول.\n"
+        "⚠️ التسجيل متاح في جهاز واحد فقط."
+    ),
+    "shahid": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك ببيانات الدخول.\n"
+        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
+        "⚠️ الحساب مخصص لجهاز واحد فقط."
+    ),
+    "osn": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 يرجى إدخال البريد الإلكتروني ثم الرجوع للقائمة الرئيسية لطلب كود تسجيل الدخول.\n"
+        "⚠️ التسجيل متاح في جهاز واحد فقط."
+    ),
+    "disney": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 يرجى استخدام رقم تلفون وكود لتسجيل الدخول.\n"
+        "⚠️ الاشتراك مخصص لجهاز واحد فقط."
+    ),
+    "noor": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك ببيانات الدخول.\n"
+        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
+        "⚠️ الحساب مخصص لجهاز واحد فقط."
+    ),
+    "tod": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بتفاصيل الدخول.\n"
+        "• الحساب يعمل على جهازين FHD كحد أقصى."
+    ),
+    "chatgpt_shared": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT المشترك."
+    ),
+    "chatgpt_private": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات حساب ChatGPT الخاص بك."
+    ),
+    "snap_gift": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بتفاصيل إهداء سناب بلس قريباً:\n"
+        "• يرجى إضافة حساب المتجر على سناب شات:\n"
+        "https://snapchat.com/t/oqpRPOYx\n"
+        "• يتم الإهداء عن طريق الإضافة فقط."
+    ),
+    "snap_private": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم التواصل معك من قبل الإدارة لتفعيل سناب بلس."
+    )
+}
 
 CLIQ_INFO = (
     "🔹 معلومات الدفع عبر كليك (CliQ):\n"
@@ -50,961 +110,1600 @@ CLIQ_INFO = (
     "• اسم المستلم: محمد بلال فايز بني احمد"
 )
 
-RECEIPT_INSTRUCTIONS = {
-    "default": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول قريباً:\n"
-        "⚠️ تنبيه هام: يرجى الالتزام بعدم فتح الحساب على أكثر من جهاز لضمان استمرار ضمانك!"
-    ),
-    "netflix": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني، ثم الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول.\n"
-        "⚠️ تنبيه هام: التسجيل متاح في جهاز واحد فقط، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
-    ),
-    "shahid": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول.\n"
-        "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
-    ),
-    "osn": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني، ثم الرجوع للقائمة الرئيسية لطلب الكود الخاص بتسجيل الدخول.\n"
-        "⚠️ تنبيه هام: التسجيل متاح في جهاز واحد فقط، وسيتم سحب الحساب فوراً إذا تم فتحه على جهازين بنفس الوقت!"
-    ),
-    "disney": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى استخدام رقم تلفون و كود لتسجيل الدخول.\n"
-        "⚠️ تنبيه هام: مخصص لجهاز واحد فقط لضمان استقرار الضمان."
-    ),
-    "noor": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى إدخال البريد الإلكتروني وكلمة السر لتسجيل الدخول:\n"
-        "⚠️ تنبيه هام: يمنع الدخول إلى الحساب أكثر من جهاز، وسوف يتم سحب الاشتراك إذا تم الفتح على جهازين وأكثر!"
-    ),
-    "tod": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات الحساب وتعليمات تسجيل الدخول:\n"
-        "• يرجى استخدام رقم تلفون و باسورد لتسجيل الدخول.\n"
-        "⚠️ تنبيه هام: الحساب يعمل على جهازين FHD كحد أقصى."
-    ),
-    "chatgpt_shared": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات حساب ChatGPT المشترك فوراً."
-    ),
-    "chatgpt_private": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات حساب ChatGPT الخاص بك فوراً:\n"
-        "⚠️ تنبيه هام: الحساب خاص بك وحدك ومحمي بالكامل طوال فترة الاشتراك."
-    ),
-    "snap_gift": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بتفاصيل إهداء سناب بلس قريباً:\n"
-        "• يرجى إضافة حسابي على سناب شات ليتم إرسال الاشتراك:\n"
-        "https://snapchat.com/t/oqpRPOYx\n"
-        "• يتم الإهداء عن طريق الإضافة فقط، ومضمون طوال فترة الاشتراك."
-    ),
-    "snap_private": (
-        "✅ تم استلام صورة الإيصال بنجاح!\n"
-        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم تزويدك بمعلومات تفعيل سناب بلس قريباً:\n"
-        "• سيتم التواصل معك من قبل الإدارة لتزويدك بمعلومات تسجيل الدخول للحفاظ على الخصوصية."
+web_app = Flask(__name__)
+
+
+@web_app.route("/")
+def home():
+    return "962ElStore Bot is active and running!"
+
+
+def run_web():
+    port = int(os.getenv("PORT", "8080"))
+    web_app.run(
+        host="0.0.0.0",
+        port=port,
+        use_reloader=False
     )
-}
 
-def get_main_menu():
+
+def self_ping():
+    while True:
+        try:
+            urllib.request.urlopen(RENDER_URL, timeout=10).read()
+            log.info("Self-ping successful")
+        except Exception as exc:
+            log.warning("Self-ping failed: %s", exc)
+
+        time.sleep(240)
+
+
+threading.Thread(target=run_web, daemon=True).start()
+
+if os.getenv("ENABLE_SELF_PING", "false").lower() == "true":
+    threading.Thread(target=self_ping, daemon=True).start()
+
+
+def is_admin(user_id):
+    return user_id in ADMINS
+
+
+def main_menu():
     keyboard = [
-        [KeyboardButton("🛒 الاشتراكات الفردية"), KeyboardButton("🔥 عروض التوفير الكبرى")],
-        [KeyboardButton("🔑 طلب كود"), KeyboardButton("⚠️ مشكلة في حسابي")],
-        [KeyboardButton("🛠 التواصل مع الدعم")]
+        [
+            KeyboardButton("🛒 الاشتراكات الفردية"),
+            KeyboardButton("🔥 عروض التوفير الكبرى")
+        ],
+        [
+            KeyboardButton("🔑 طلب كود"),
+            KeyboardButton("⚠️ مشكلة في حسابي")
+        ],
+        [
+            KeyboardButton("🛠 التواصل مع الدعم")
+        ]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-async def check_user_channel_membership(bot, user_id):
+    return ReplyKeyboardMarkup(
+        keyboard,
+        resize_keyboard=True
+    )
+
+
+def join_markup():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "📢 اشترك في القناة الآن",
+                url="https://t.me/El962Store"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "✅ لقد اشتريت / اشتركت، تحقق الآن",
+                callback_data="verify_subscription"
+            )
+        ]
+    ])
+
+
+async def is_member(bot, user_id):
     try:
-        member = await bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        if member.status in ['member', 'administrator', 'creator']:
-            return True
-    except Exception as e:
-        print(f"Error checking channel membership: {e}")
+        member = await bot.get_chat_member(
+            CHANNEL_USERNAME,
+            user_id
+        )
+
+        return member.status in (
+            "member",
+            "administrator",
+            "creator"
+        )
+
+    except Exception:
+        log.exception("Channel membership check failed")
+        return False
+
+
+async def ensure_member(update):
+    user = update.effective_user
+
+    if await is_member(update.get_bot(), user.id):
+        return True
+
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            "⚠️ يرجى الاشتراك في قناة المتجر أولاً ثم اضغط تحقق.",
+            reply_markup=join_markup()
+        )
+
     return False
 
-async def send_order_to_admins(context, text, markup, photo=None):
-    admin_msgs = {}
+
+async def notify_admins(
+    context,
+    text,
+    photo=None,
+    keyboard=None
+):
+    sent = {}
+
     for admin_id in ADMINS:
         try:
             if photo:
-                msg = await context.bot.send_photo(chat_id=admin_id, photo=photo, caption=text, reply_markup=markup, parse_mode="Markdown")
+                msg = await context.bot.send_photo(
+                    chat_id=admin_id,
+                    photo=photo,
+                    caption=text,
+                    reply_markup=keyboard
+                )
             else:
-                msg = await context.bot.send_message(chat_id=admin_id, text=text, reply_markup=markup, parse_mode="Markdown")
-            admin_msgs[admin_id] = msg.message_id
-        except Exception as e:
-            print(f"Error sending to admin {admin_id}: {e}")
-    return admin_msgs
+                msg = await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=text,
+                    reply_markup=keyboard
+                )
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    is_member = await check_user_channel_membership(context.bot, user.id)
-    
-    if not is_member:
-        join_keyboard = [
-            [InlineKeyboardButton("📢 اشترك في القناة الآن", url="https://t.me/El962Store")],
-            [InlineKeyboardButton("✅ لقد اشتريت / اشتركت، تحقق الآن", callback_data="verify_subscription")]
-        ]
-        await update.message.reply_text(
-            f"أهلاً بك يا {user.full_name} في متجر 962ElStore 🎬🤖\n\n"
-            "⚠️ **عذراً، يرجى الاشتراك في قناة المتجر أولاً لتتمكن من استخدام البوت ومتابعة العروض الحصرية:**\n"
-            "👉 https://t.me/El962Store\n\n"
-            "بعد الانضمام، اضغط على زر **(تحقق الآن)** بالأسفل 👇",
-            reply_markup=InlineKeyboardMarkup(join_keyboard),
-            disable_web_page_preview=True
+            sent[admin_id] = msg.message_id
+
+        except Exception:
+            log.exception(
+                "Could not notify admin %s",
+                admin_id
+            )
+
+    return sent
+
+
+def platform_name(code):
+    names = {
+        "netflix": "Netflix - نتفليكس",
+        "shahid": "Shahid VIP - شاهد",
+        "osn": "OSN+ - أوس إن",
+        "disney": "Disney+ - ديزني",
+        "noor": "Noor Play - نور بلاي",
+        "tod": "TOD - تود",
+        "snap_gift": "Snapchat+ إهداء",
+        "snap_private": "Snapchat+ من داخل الحساب",
+        "chatgpt_shared": "ChatGPT Plus مشترك",
+        "chatgpt_private": "ChatGPT Plus خاص",
+        "b2": "باقة منصتين",
+        "b3": "باقة 3 منصات",
+        "b4": "باقة 4 منصات"
+    }
+
+    return names.get(code, code)
+
+
+def price_and_duration(sub_type, duration):
+    prices = {
+        "b2": {
+            "1m": 5,
+            "3m": 12,
+            "6m": 22,
+            "1y": 38
+        },
+        "b3": {
+            "1m": 6,
+            "3m": 15,
+            "6m": 28,
+            "1y": 48
+        },
+        "b4": {
+            "1m": 8,
+            "3m": 20,
+            "6m": 36,
+            "1y": 60
+        },
+        "tod": {
+            "1m": 6,
+            "3m": 9
+        },
+        "snap_gift": {
+            "3m": 11,
+            "6m": 19,
+            "1y": 27
+        },
+        "snap_private": {
+            "1m": 3,
+            "1y": 16
+        },
+        "chatgpt_shared": {
+            "1m": 2.5,
+            "3m": 5,
+            "6m": 9,
+            "1y": 15
+        },
+        "chatgpt_private": {
+            "1m": 8
+        }
+    }
+
+    durations = {
+        "1m": "شهر واحد",
+        "3m": "3 أشهر",
+        "6m": "6 أشهر",
+        "1y": "سنة كاملة"
+    }
+
+    price = prices.get(sub_type, {}).get(duration)
+
+    if price is None:
+        price = {
+            "1m": 2.5,
+            "3m": 5,
+            "6m": 9,
+            "1y": 15
+        }.get(duration)
+
+    if price is None:
+        raise ValueError("المدة أو السعر غير معروف")
+
+    return Decimal(str(price)), durations[duration]
+
+
+def parse_package(data, prefix):
+    parts = data.split("_")
+
+    if parts[0] != prefix:
+        raise ValueError("طلب غير صحيح")
+
+    if parts[1] in ("chatgpt", "snap"):
+        sub_type = "_".join(parts[1:3])
+        duration = parts[3]
+    else:
+        sub_type = parts[1]
+        duration = parts[2]
+
+    return sub_type, duration
+
+
+def bundle_keyboard(selected, count):
+    platforms = [
+        ("netflix", "🎬 Netflix"),
+        ("shahid", "📺 Shahid"),
+        ("osn", "🎥 OSN+"),
+        ("disney", "✨ Disney+"),
+        ("noor", "🌙 Noor Play"),
+        ("chatgpt", "🤖 ChatGPT Plus")
+    ]
+
+    rows = []
+
+    for key, label in platforms:
+        mark = "✅ " if key in selected else ""
+
+        rows.append([
+            InlineKeyboardButton(
+                mark + label,
+                callback_data=(
+                    "unsel_" if key in selected else "sel_"
+                ) + key
+            )
+        ])
+
+    if len(selected) == count:
+        rows.append([
+            InlineKeyboardButton(
+                "➡️ متابعة لاختيار المدة",
+                callback_data="proceed_to_duration"
+            )
+        ])
+
+    rows.append([
+        InlineKeyboardButton(
+            "⬅️ رجوع",
+            callback_data="back_to_bundles"
         )
+    ])
+
+    return InlineKeyboardMarkup(rows)
+
+
+def admin_keyboard():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "📊 الملخص المالي",
+                callback_data="fin_report"
+            ),
+            InlineKeyboardButton(
+                "💰 صافي الربح",
+                callback_data="fin_profit"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "➕ تسجيل دخل",
+                callback_data="fin_income"
+            ),
+            InlineKeyboardButton(
+                "➖ تسجيل مصروف",
+                callback_data="fin_expense"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🏦 رأس المال",
+                callback_data="fin_capital"
+            ),
+            InlineKeyboardButton(
+                "🔄 تحويل بين المحافظ",
+                callback_data="fin_transfer"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📦 المخزون",
+                callback_data="fin_stock"
+            ),
+            InlineKeyboardButton(
+                "🧾 آخر العمليات",
+                callback_data="fin_history"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📋 جرد المحفظة",
+                callback_data="fin_count"
+            )
+        ]
+    ])
+
+
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    user = update.effective_user
+
+    if not await ensure_member(update):
         return
 
-    welcome_text = (
-        "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
-        "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
+    database.save_customer(user)
+
+    await update.message.reply_text(
+        f"أهلاً بك في متجر 962ElStore!\n\n"
         f"رقمك التعريفي: {user.id}\n"
         f"الاسم: {user.full_name}\n\n"
-        "اختر من القائمة أدناه للبدء:"
+        "اختر من القائمة:",
+        reply_markup=main_menu()
     )
-    await update.message.reply_text(welcome_text, reply_markup=get_main_menu())
 
-async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMINS:
+
+async def admin_panel(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if not is_admin(update.effective_user.id):
         return
 
-    args = context.args
-    if len(args) < 2:
-        await update.message.reply_text("❌ الاستخدام الصحيح:\n/reply [user_id] [الرسالة]")
+    await update.effective_message.reply_text(
+        "لوحة إدارة 962ElStore:",
+        reply_markup=admin_keyboard()
+    )
+
+
+async def admin_reply(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if not is_admin(update.effective_user.id):
         return
 
-    target_user_id = args[0]
-    reply_message = " ".join(args[1:])
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "الاستخدام: /reply USER_ID نص الرسالة"
+        )
+        return
 
     try:
+        target = int(context.args[0])
+
         await context.bot.send_message(
-            chat_id=target_user_id,
-            text=f"📬 رد جديد من الإدارة (962ElStore):\n\n{reply_message}"
+            target,
+            "📬 رد جديد من إدارة 962ElStore:\n\n"
+            + " ".join(context.args[1:])
         )
-        await update.message.reply_text("✅ تم إرسال الرد إلى الزبون بنجاح!")
-    except Exception as e:
-        await update.message.reply_text(f"❌ فشل إرسال الرسالة للزبون:\n{e}")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text(
+            "✅ تم إرسال الرد."
+        )
+
+    except Exception as exc:
+        await update.message.reply_text(
+            f"❌ تعذر إرسال الرد: {exc}"
+        )
+
+
+async def handle_message(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
     user = update.effective_user
-    
-    is_member = await check_user_channel_membership(context.bot, user.id)
-    if not is_member:
-        join_keyboard = [
-            [InlineKeyboardButton("📢 اشترك في القناة الآن", url="https://t.me/El962Store")],
-            [InlineKeyboardButton("✅ لقد اشتريت / اشتركت، تحقق الآن", callback_data="verify_subscription")]
-        ]
-        await update.message.reply_text(
-            "⚠️ تنبيه: يرجى الاشتراك في قناة المتجر أولاً للاستمرار:\n👉 https://t.me/El962Store\n\nثم اضغط على زر التحقق 👇",
-            reply_markup=InlineKeyboardMarkup(join_keyboard),
-            disable_web_page_preview=True
-        )
+
+    if not await ensure_member(update):
         return
 
-    text = update.message.text
-    
-    if context.user_data.get('waiting_for_issue_email'):
-        context.user_data['issue_email'] = text
-        context.user_data['waiting_for_issue_email'] = False
-        context.user_data['waiting_for_issue_description'] = True
-        
-        await update.message.reply_text(
-            "📝 تم استلام البريد الإلكتروني بنجاح.\n\n"
-            "الآن، يرجى **وصف المشكلة بالتفصيل** (ويمكنك إرسال صورة للمشكلة إن وجدت):"
-        )
-        return
+    database.save_customer(user)
 
-    if context.user_data.get('waiting_for_issue_description'):
-        platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
-        issue_email = context.user_data.get('issue_email', 'غير محدد')
-        issue_desc = text
-        
-        await update.message.reply_text(
-            "✅ **تم إرسال بلاغ المشكلة بنجاح!**\n"
-            "فريق الدعم في متجر 962ElStore سيقوم بمراجعة المشكلة والرد عليك قريباً جداً ⏳"
-        )
+    text = (update.message.text or "").strip()
 
-        admin_msg = (
-            "⚠️ **تنبيه: بلاغ مشكلة جديدة في حساب زبون!**\n\n"
-            f"👤 اسم الزبون: {user.full_name}\n"
-            f"🔗 يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون: {user.id}\n\n"
-            f"📦 المنصة: {platform_name}\n"
-            f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
-            f"📝 وصف المشكلة:\n{issue_desc}\n\n"
-            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
-            f"👇 انسخ هذا الأمر للرد:\n"
-            f"```\n/reply {user.id} ضع_الرد_هنا\n```"
-        )
-        
-        markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
-        ])
-        
-        msgs = await send_order_to_admins(context, admin_msg, markup)
-        active_admin_messages[str(user.id)] = msgs
+    # استقبال إدخالات الإدارة المالية
+    action = context.user_data.get("finance_wait")
 
-        context.user_data['waiting_for_issue_description'] = False
-        return
+    if action:
+        context.user_data.pop("finance_wait", None)
 
-    if context.user_data.get('waiting_for_netflix_household_email'):
-        netflix_email = text
-        
-        await update.message.reply_text(
-            "✅ تم استلام بريد نتفليكس بنجاح!\n"
-            "جارٍ إرسال طلب كود السكن للأدمن، سيتم تزويدك بالكود قريباً ⏳"
-        )
+        if not is_admin(user.id):
+            return
 
-        admin_msg = (
-            "🏠 طلب كود سكن نتفليكس (Household Code)!\n\n"
-            f"اسم الزبون: {user.full_name}\n"
-            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون: {user.id}\n\n"
-            f"إيميل نتفليكس المطلوب له الكود:\n{netflix_email}\n\n"
-            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
-            f"👇 انسخ هذا الأمر للرد:\n"
-            f"```\n/reply {user.id} ضع_الكود_هنا\n```"
-        )
-        
-        markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
-        ])
-        
-        msgs = await send_order_to_admins(context, admin_msg, markup)
-        active_admin_messages[str(user.id)] = msgs
+        try:
+            fields = [
+                x.strip()
+                for x in text.split("|")
+            ]
 
-        context.user_data['waiting_for_netflix_household_email'] = False
-        return
+            if action == "income" and len(fields) >= 3:
+                database.add_income(
+                    fields[0],
+                    fields[1],
+                    fields[2],
+                    user.id
+                )
 
-    if context.user_data.get('waiting_for_login_code_email'):
-        platform_name = context.user_data.get('login_code_platform', 'منصة رقمية')
-        account_info = text
-        
-        await update.message.reply_text(
-            f"✅ تم استلام تفاصيل حساب ({platform_name}) بنجاح!\n"
-            "جارٍ إرسال طلب كود تسجيل الدخول للأدمن، سيتم تزويدك بالكود قريباً ⏳"
-        )
+                await update.message.reply_text(
+                    "✅ تم تسجيل الدخل."
+                )
 
-        admin_msg = (
-            "🔑 طلب كود تسجيل دخول جديد!\n\n"
-            f"اسم الزبون: {user.full_name}\n"
-            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون: {user.id}\n\n"
-            f"المنصة: {platform_name}\n"
-            f"معلومات الحساب / الإيميل:\n{account_info}\n\n"
-            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
-            f"👇 انسخ هذا الأمر للرد:\n"
-            f"```\n/reply {user.id} ضع_الكود_هنا\n```"
-        )
-        
-        markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
-        ])
-        
-        msgs = await send_order_to_admins(context, admin_msg, markup)
-        active_admin_messages[str(user.id)] = msgs
+            elif action == "expense" and len(fields) >= 4:
+                database.add_expense(
+                    fields[1],
+                    fields[0],
+                    fields[2],
+                    fields[3],
+                    user.id
+                )
 
-        context.user_data['waiting_for_login_code_email'] = False
-        return
+                await update.message.reply_text(
+                    "✅ تم تسجيل المصروف."
+                )
 
-    if text == "🛒 الاشتراكات الفردية":
-        subs_keyboard = [
-            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
-            [InlineKeyboardButton("📺 Shahid VIP - شاهد", callback_data="sub_shahid")],
-            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
-            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
-            [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
-            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="sub_snapchat_menu")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
-        ]
-        await update.message.reply_text(
-            "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
-            reply_markup=InlineKeyboardMarkup(subs_keyboard)
-        )
-        
-    elif text == "🔥 عروض التوفير الكبرى":
-        bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً (5 JD)", callback_data="bundle_init_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (6 JD)", callback_data="bundle_init_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (8 JD)", callback_data="bundle_init_4")]
-        ]
-        await update.message.reply_text(
-            "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
-            "اجمع منصاتك المفضلة (بما فيها ChatGPT Plus) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
-            reply_markup=InlineKeyboardMarkup(bundles_keyboard)
-        )
-        
-    elif text == "🔑 طلب كود":
-        code_keyboard = [
-            [InlineKeyboardButton("🔑 كود تسجيل دخول", callback_data="code_login_menu")],
-            [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
-        ]
-        await update.message.reply_text(
-            "🔑 قسم طلب الأكواد:\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
-            reply_markup=InlineKeyboardMarkup(code_keyboard)
-        )
+            elif action == "capital" and len(fields) >= 4:
+                database.add_capital(
+                    fields[0],
+                    fields[1],
+                    fields[2],
+                    fields[3],
+                    user.id
+                )
 
-    elif text == "⚠️ مشكلة في حسابي":
-        issue_keyboard = [
-            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="issue_netflix")],
-            [InlineKeyboardButton("📺 Shahid VIP - شاهد", callback_data="issue_shahid")],
-            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="issue_osn")],
-            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="issue_disney")],
-            [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="issue_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="issue_tod")],
-            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="issue_snapchat")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="issue_chatgpt")]
-        ]
-        await update.message.reply_text(
-            "⚠️ **قسم الإبلاغ عن مشكلة في الحساب:**\n\nاختر المنصة التي تواجه مشكلة فيها:",
-            reply_markup=InlineKeyboardMarkup(issue_keyboard),
-            parse_mode="Markdown"
-        )
-        
-    elif text == "🛠 التواصل مع الدعم":
-        support_text = (
-            "🛠 الدعم الفني وخدمة العملاء - 962ElStore\n\n"
-            "إذا واجهتك أي مشكلة أو استفسار، يسعدنا تواصلك معنا مباشرة عبر حساب الدعم:\n"
-            f"💬 {SUPPORT_USERNAME}\n\n"
-            "نحن في خدمتكم على مدار الساعة!"
-        )
-        await update.message.reply_text(support_text)
+                await update.message.reply_text(
+                    "✅ تم تسجيل حركة رأس المال."
+                )
 
-def get_bundle_selection_keyboard(selected_list, target_count):
-    platforms = [
-        ("netflix", "🎬 Netflix - نتفليكس"),
-        ("shahid", "📺 Shahid VIP - شاهد"),
-        ("osn", "🎥 OSN+ - أوس إن"),
-        ("disney", "✨ Disney+ - ديزني"),
-        ("noor", "🌙 Noor Play - نور بلاي"),
-        ("chatgpt", "🤖 ChatGPT Plus - شات جي بي تي")
-    ]
-    
-    keyboard = []
-    for key, name in platforms:
-        if key in selected_list:
-            btn_text = f"✅ {name}"
-            cb_data = f"unsel_{key}"
-        else:
-            btn_text = name
-            cb_data = f"sel_{key}"
-        keyboard.append([InlineKeyboardButton(btn_text, callback_data=cb_data)])
-    
-    if len(selected_list) == target_count:
-        keyboard.append([InlineKeyboardButton("➡️ متابعة لاختيار المدة", callback_data="proceed_to_duration")])
-    
-    keyboard.append([InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_bundles")])
-    return InlineKeyboardMarkup(keyboard)
+            elif action == "transfer" and len(fields) >= 4:
+                database.transfer(
+                    fields[0],
+                    fields[1],
+                    fields[2],
+                    fields[3],
+                    user.id
+                )
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user = query.from_user
-    data = query.data
+                await update.message.reply_text(
+                    "✅ تم التحويل بين المحافظ دون احتسابه ربحاً أو مصروفاً."
+                )
 
-    if data.startswith("claim_"):
-        target_user_id = data.split("_")[1]
-        
-        if user.id == 7983029778:
-            claimer_name = "محمد 🟢"
-        elif user.id == 5884539860:
-            claimer_name = "حسام 🟢"
-        else:
-            claimer_name = user.full_name
+            elif action == "count" and len(fields) >= 2:
+                expected, difference = database.record_cash_count(
+                    fields[0],
+                    fields[1],
+                    "|".join(fields[2:]),
+                    user.id
+                )
 
-        admin_msgs = active_admin_messages.get(target_user_id, {})
-        
-        for admin_id, msg_id in admin_msgs.items():
-            try:
-                try:
-                    msg = await context.bot.get_message(chat_id=admin_id, message_id=msg_id)
-                except Exception:
-                    msg = None
+                await update.message.reply_text(
+                    f"📋 نتيجة الجرد\n"
+                    f"الرصيد الدفتري: {expected} د.أ\n"
+                    f"الفرق: {difference} د.أ"
+                )
 
-                if msg:
-                    if msg.caption:
-                        old_text = msg.caption
-                        if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
-                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 تم استلام الطلب بواسطة: {claimer_name}")
-                        else:
-                            new_text = old_text + f"\n\n🔥 تم استلام الطلب بواسطة: {claimer_name}"
-                        
-                        await context.bot.edit_message_caption(chat_id=admin_id, message_id=msg_id, caption=new_text, parse_mode="Markdown", reply_markup=None)
-                    else:
-                        old_text = msg.text
-                        if "🟢 حالة الطلب: لم يتم الاستلام بعد" in old_text:
-                            new_text = old_text.replace("🟢 حالة الطلب: لم يتم الاستلام بعد", f"🔥 تم استلام الطلب بواسطة: {claimer_name}")
-                        else:
-                            new_text = old_text + f"\n\n🔥 تم استلام الطلب بواسطة: {claimer_name}"
-                            
-                        await context.bot.edit_message_text(chat_id=admin_id, message_id=msg_id, text=new_text, parse_mode="Markdown", reply_markup=None)
-            except Exception as e:
-                print(f"Error updating admin {admin_id} message: {e}")
-                
-        await query.answer(f"✅ تم تسجيل استلام الطلب بواسطة {claimer_name.split()[0]}!")
-        return
+            else:
+                await update.message.reply_text(
+                    "❌ صيغة الإدخال غير صحيحة. افتح /admin واتبع الصيغة الموضحة."
+                )
 
-    if data == "verify_subscription":
-        is_member = await check_user_channel_membership(context.bot, user.id)
-        if is_member:
-            await query.answer("✅ شكراً لاشتراكك في القناة!", show_alert=True)
-            welcome_text = (
-                "أهلاً بك في متجر 962ElStore للتسوق الرقمي!\n\n"
-                "كل اللي تحبه من عالم الترفيه والذكاء الاصطناعي بأسرار مميزة وأسعار منافسة 🎬🤖\n\n"
-                f"رقمك التعريفي: {user.id}\n"
-                f"الاسم: {user.full_name}\n\n"
-                "اختر من القائمة أدناه للبدء:"
+        except Exception as exc:
+            await update.message.reply_text(
+                f"❌ لم تتم العملية: {exc}"
             )
-            await query.message.edit_text(welcome_text)
-            await query.message.reply_text("القائمة الرئيسية:", reply_markup=get_main_menu())
-        else:
-            await query.answer("❌ عذراً، لم تقم بالاشتراك في القناة بعد! يرجى الاشتراك أولاً.", show_alert=True)
+
         return
 
-    await query.answer()
+    # بلاغ مشكلة الحساب
+    if context.user_data.get("waiting_for_issue_email"):
+        context.user_data["issue_email"] = text
+        context.user_data["waiting_for_issue_email"] = False
+        context.user_data["waiting_for_issue_description"] = True
 
-    if data.startswith("issue_"):
-        p_code = data.replace("issue_", "")
-        p_map = {
-            "netflix": "Netflix - نتفليكس",
-            "shahid": "Shahid VIP - شاهد",
-            "osn": "OSN+ - أوس إن",
-            "disney": "Disney+ - ديزني",
-            "noor": "Noor Play - نور بلاي",
-            "tod": "TOD - تود",
-            "snapchat": "Snapchat+ - سناب بلس",
-            "chatgpt": "ChatGPT Plus - شات جي بي تي"
-        }
-        platform_name = p_map.get(p_code, "المنصة")
-        context.user_data['issue_platform'] = platform_name
-        context.user_data['waiting_for_issue_email'] = True
-
-        await query.message.edit_text(
-            f"⚠️ **الإبلاغ عن مشكلة في حساب ({platform_name}):**\n\n"
-            "الرجاء إرسال **البريد الإلكتروني (الإيميل) أو اسم الحساب** هنا في المحادثة الآن ✍️",
-            parse_mode="Markdown"
+        await update.message.reply_text(
+            "📝 أرسل وصف المشكلة بالتفصيل، ويمكنك إرسال صورة."
         )
         return
 
-    if data == "back_to_main":
-        subs_keyboard = [
-            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="sub_netflix")],
-            [InlineKeyboardButton("📺 Shahid VIP - شاهد", callback_data="sub_shahid")],
-            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="sub_osn")],
-            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
-            [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
-            [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
-            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="sub_snapchat_menu")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
+    if context.user_data.get("waiting_for_issue_description"):
+        context.user_data["waiting_for_issue_description"] = False
+
+        msg = (
+            f"⚠️ بلاغ مشكلة جديد\n"
+            f"الاسم: {user.full_name}\n"
+            f"المعرف: {user.id}\n"
+            f"المنصة: {context.user_data.get('issue_platform', 'غير محدد')}\n"
+            f"الحساب: {context.user_data.get('issue_email', 'غير محدد')}\n"
+            f"الوصف:\n{text}"
+        )
+
+        await notify_admins(context, msg)
+
+        await update.message.reply_text(
+            "✅ تم إرسال بلاغك للدعم."
+        )
+        return
+
+    # طلب كود تسجيل الدخول أو كود السكن
+    if (
+        context.user_data.get("waiting_for_login_code_email")
+        or context.user_data.get("waiting_for_netflix_household_email")
+    ):
+        is_household = context.user_data.get(
+            "waiting_for_netflix_household_email",
+            False
+        )
+
+        context.user_data["waiting_for_login_code_email"] = False
+        context.user_data["waiting_for_netflix_household_email"] = False
+
+        label = (
+            "كود سكن Netflix"
+            if is_household
+            else "كود تسجيل دخول " + context.user_data.get(
+                "login_code_platform", ""
+            )
+        )
+
+        msg = (
+            f"🔑 طلب {label}\n"
+            f"الاسم: {user.full_name}\n"
+            f"المعرف: {user.id}\n"
+            f"بيانات الحساب: {text}"
+        )
+
+        await notify_admins(context, msg)
+
+        await update.message.reply_text(
+            "✅ تم إرسال طلب الكود للإدارة."
+        )
+        return
+
+    # الاشتراكات الفردية
+    if text == "🛒 الاشتراكات الفردية":
+        rows = [
+            [("🎬 Netflix - نتفليكس", "sub_netflix")],
+            [("📺 Shahid VIP - شاهد", "sub_shahid")],
+            [("🎥 OSN+ - أوس إن", "sub_osn")],
+            [("✨ Disney+ - ديزني", "sub_disney")],
+            [("🌙 Noor Play - نور بلاي", "sub_noor")],
+            [("⚽ TOD - تود", "sub_tod")],
+            [("👻 Snapchat+ - سناب بلس", "sub_snapchat_menu")],
+            [("🤖 ChatGPT Plus - شات جي بي تي", "sub_chatgpt_menu")]
         ]
-        await query.message.edit_text(
-            "📦 قسم الاشتراكات الفردية (الاشتراك الواحد):\nاختر المنصة التي تناسبك:",
-            reply_markup=InlineKeyboardMarkup(subs_keyboard)
-        )
 
-    elif data == "back_to_bundles":
-        bundles_keyboard = [
-            [InlineKeyboardButton("👥 عرض منصتين معاً (5 JD)", callback_data="bundle_init_2")],
-            [InlineKeyboardButton("⭐ عرض الـ 3 منصات (6 JD)", callback_data="bundle_init_3")],
-            [InlineKeyboardButton("💎 عرض الـ 4 منصات معاً (8 JD)", callback_data="bundle_init_4")]
-        ]
-        await query.message.edit_text(
-            "🔥 عروض التوفير الكبرى - 962ElStore\n\n"
-            "اجمع منصاتك المفضلة (بما فيها ChatGPT Plus) في باقة واحدة ووفر أكثر.. اختر نوع العرض:",
-            reply_markup=InlineKeyboardMarkup(bundles_keyboard)
-        )
-
-    elif data == "code_login_menu":
-        kb = [
-            [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="login_code_netflix")],
-            [InlineKeyboardButton("🎥 OSN+ - أوس إن", callback_data="login_code_osn")],
-            [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="login_code_disney")],
-            [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="login_code_chatgpt")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
-        ]
-        await query.message.edit_text(
-            "🔑 اختر المنصة التي تحتاج كود تسجيل دخول لها:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data == "code_back_main":
-        code_keyboard = [
-            [InlineKeyboardButton("🔑 كود تسجيل دخول", callback_data="code_login_menu")],
-            [InlineKeyboardButton("🏠 كود سكن (Netflix Household)", callback_data="code_household")]
-        ]
-        await query.message.edit_text(
-            "🔑 قسم طلب الأكواد:\n\nيرجى اختيار نوع الكود الذي تحتاجه:",
-            reply_markup=InlineKeyboardMarkup(code_keyboard)
-        )
-
-    elif data.startswith("login_code_"):
-        p_code = data.replace("login_code_", "")
-        p_map = {
-            "netflix": "Netflix - نتفليكس",
-            "osn": "OSN+ - أوس إن",
-            "disney": "Disney+ - ديزني",
-            "chatgpt": "ChatGPT Plus - شات جي بي تي"
-        }
-        platform_name = p_map.get(p_code, "المنصة")
-        context.user_data['login_code_platform'] = platform_name
-        context.user_data['waiting_for_login_code_email'] = True
-
-        await query.message.edit_text(
-            f"🔑 طلب كود تسجيل دخول ({platform_name}):\n\n"
-            "الرجاء إرسال البريد الإلكتروني (الإيميل) أو معلومات الحساب هنا في المحادثة الآن ✍️"
-        )
-
-    elif data == "code_household":
-        await query.message.edit_text(
-            "🏠 قسم كود السكن (Household Code):\n\nاختر المنصة المطلوبة:",
+        await update.message.reply_text(
+            "📦 اختر المنصة:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎬 Netflix - نتفليكس", callback_data="hh_netflix")],
-                [InlineKeyboardButton("⬅️ رجوع", callback_data="code_back_main")]
+                [
+                    InlineKeyboardButton(a, callback_data=b)
+                ]
+                for row in rows
+                for a, b in row
             ])
         )
 
-    elif data == "hh_netflix":
-        context.user_data['waiting_for_netflix_household_email'] = True
-        await query.message.edit_text(
-            "🎬 طلب كود سكن نتفليكس:\n\n"
-            "الرجاء إرسال البريد الإلكتروني (الإيميل) الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️"
-        )
-
-    elif data == "sub_snapchat_menu":
-        kb = [
-            [InlineKeyboardButton("🎁 سناب بلس - إهداء (Gift)", callback_data="snap_gift_menu")],
-            [InlineKeyboardButton("👤 سناب بلس - من داخل الحساب", callback_data="snap_private_menu")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(
-            "👻 اختر نوع اشتراك Snapchat+ (سناب بلس):",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data == "snap_gift_menu":
-        kb = [
-            [InlineKeyboardButton("🟢 3 أشهر (11 JD)", callback_data="pkg_snap_gift_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (19 JD)", callback_data="pkg_snap_gift_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (27 JD)", callback_data="pkg_snap_gift_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_snapchat_menu")]
-        ]
-        await query.message.edit_text(
-            "👻 اشتراك Snapchat+ (إهداء):\nاختر المدة المطلوبة:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data == "snap_private_menu":
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (3 JD)", callback_data="pkg_snap_private_1m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (16 JD)", callback_data="pkg_snap_private_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_snapchat_menu")]
-        ]
-        await query.message.edit_text(
-            "👻 اشتراك Snapchat+ (من داخل الحساب):\nاختر المدة المطلوبة:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data == "sub_chatgpt_menu":
-        kb = [
-            [InlineKeyboardButton("👥 حساب ChatGPT مشترك", callback_data="sub_chatgpt_shared_menu")],
-            [InlineKeyboardButton("⭐ حساب ChatGPT خاص (مستقل)", callback_data="pkg_chatgpt_private_1m")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-        ]
-        await query.message.edit_text(
-            "🤖 اختر نوع اشتراك ChatGPT Plus الذي تفضله:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data == "sub_chatgpt_shared_menu":
-        kb = [
-            [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data="pkg_chatgpt_shared_1m")],
-            [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data="pkg_chatgpt_shared_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data="pkg_chatgpt_shared_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data="pkg_chatgpt_shared_1y")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_chatgpt_menu")]
-        ]
-        await query.message.edit_text(
-            "🤖 اشتراك ChatGPT Plus (حساب مشترك):\nاختر المدة المطلوبة:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
-
-    elif data.startswith("sub_"):
-        sub_type = data.replace("sub_", "")
-        details_map = {
-            "netflix": ("🎬 اشتراك Netflix - جودة 4K (بروفايل خاص - جهاز واحد)", "pkg_netflix"),
-            "shahid": ("📺 اشتراك Shahid VIP - شاهد (جهاز واحد)", "pkg_shahid"),
-            "osn": ("🎥 اشتراك OSN+ - أوس إن (جهاز واحد)", "pkg_osn"),
-            "disney": ("✨ اشتراك Disney+ - ديزني (جهاز واحد)", "pkg_disney"),
-            "noor": ("🌙 اشتراك Noor Play - نور بلاي (جهاز واحد)", "pkg_noor"),
-            "tod": ("⚽ اشتراك TOD - تود (رياضة وترفيه - جهازين FHD)", "pkg_tod")
-        }
-        title, prefix = details_map[sub_type]
-        
-        if sub_type == "tod":
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data=f"{prefix}_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (9 JD)", callback_data=f"{prefix}_3m")],
-                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-            ]
-        else:
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (2.5 JD)", callback_data=f"{prefix}_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (5 JD)", callback_data=f"{prefix}_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (9 JD)", callback_data=f"{prefix}_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (15 JD)", callback_data=f"{prefix}_1y")],
-                [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
-            ]
-        await query.message.edit_text(f"{title}\n\nاختر المدة المطلوبة:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("bundle_init_"):
-        count = int(data.replace("bundle_init_", ""))
-        context.user_data['bundle_target_count'] = count
-        context.user_data['selected_platforms'] = []
-        context.user_data['bundle_type'] = f"b{count}"
-
-        text = (
-            f"🎯 اختر {count} منصات تفضلها من القائمة أدناه (تشمل ChatGPT Plus):\n"
-            "(كلما تضغط على منصة سيتم تفعيلها بـ ✅، وعند إتمام اختيارك سيظهر زر المتابعة)"
-        )
-        kb = get_bundle_selection_keyboard([], count)
-        await query.message.edit_text(text, reply_markup=kb)
-
-    elif data.startswith("sel_"):
-        p_key = data.replace("sel_", "")
-        selected = context.user_data.get('selected_platforms', [])
-        target = context.user_data.get('bundle_target_count', 2)
-
-        if len(selected) < target and p_key not in selected:
-            selected.append(p_key)
-            context.user_data['selected_platforms'] = selected
-
-        text = (
-            f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
-            f"تم اختيار ({len(selected)} من {target})"
-        )
-        kb = get_bundle_selection_keyboard(selected, target)
-        await query.message.edit_text(text, reply_markup=kb)
-
-    elif data.startswith("unsel_"):
-        p_key = data.replace("unsel_", "")
-        selected = context.user_data.get('selected_platforms', [])
-        target = context.user_data.get('bundle_target_count', 2)
-
-        if p_key in selected:
-            selected.remove(p_key)
-            context.user_data['selected_platforms'] = selected
-
-        text = (
-            f"🎯 اختر {target} منصات تفضلها من القائمة أدناه:\n"
-            f"تم اختيار ({len(selected)} من {target})"
-        )
-        kb = get_bundle_selection_keyboard(selected, target)
-        await query.message.edit_text(text, reply_markup=kb)
-
-    elif data == "proceed_to_duration":
-        b_type = context.user_data.get('bundle_type', 'b2')
-        
-        if b_type == "b2":
-            text = "👥 عرض منصتين معاً (5 JD للشهر)\nاختر المدة المطلوبة:"
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (5 JD)", callback_data="pkg_b2_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (12 JD)", callback_data="pkg_b2_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_b2_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (38 JD)", callback_data="pkg_b2_1y")],
-                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_2")]
-            ]
-        elif b_type == "b3":
-            text = "⭐ عرض الـ 3 منصات (6 JD للشهر)\nاختر المدة المطلوبة:"
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (6 JD)", callback_data="pkg_b3_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (15 JD)", callback_data="pkg_b3_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (28 JD)", callback_data="pkg_b3_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (48 JD)", callback_data="pkg_b3_1y")],
-                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_3")]
-            ]
-        else:
-            text = "💎 عرض الـ 4 منصات معاً - الباكج الشامل (8 JD للشهر)\nاختر المدة المطلوبة:"
-            kb = [
-                [InlineKeyboardButton("🟢 شهر واحد (8 JD)", callback_data="pkg_b4_1m")],
-                [InlineKeyboardButton("🟢 3 أشهر (20 JD)", callback_data="pkg_b4_3m")],
-                [InlineKeyboardButton("🟢 6 أشهر (36 JD)", callback_data="pkg_b4_6m")],
-                [InlineKeyboardButton("🟢 سنة كاملة (60 JD)", callback_data="pkg_b4_1y")],
-                [InlineKeyboardButton("⬅️ رجوع لتعديل المنصات", callback_data="bundle_init_4")]
-            ]
-        await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("pkg_"):
-        parts = data.split("_")
-        
-        if parts[1] == "chatgpt":
-            sub_type = f"{parts[1]}_{parts[2]}"
-            duration = parts[3]
-        elif parts[1] == "snap":
-            sub_type = f"{parts[1]}_{parts[2]}"
-            duration = parts[3]
-        else:
-            sub_type = parts[1]
-            duration = parts[2]
-
-        context.user_data['current_sub'] = sub_type
-
-        p_names = {
-            "netflix": "Netflix 4K",
-            "shahid": "Shahid VIP",
-            "osn": "OSN+",
-            "disney": "Disney+",
-            "noor": "Noor Play",
-            "tod": "TOD",
-            "snap_gift": "Snapchat+ (إهداء)",
-            "snap_private": "Snapchat+ (من داخل الحساب)",
-            "chatgpt_shared": "ChatGPT Plus (مشترك)",
-            "chatgpt_private": "ChatGPT Plus (خاص)"
-        }
-
-        if sub_type.startswith("b"):
-            selected_keys = context.user_data.get('selected_platforms', [])
-            selected_names = [p_names.get(k, k) for k in selected_keys]
-            platforms_str = " + ".join(selected_names) if selected_names else "منصات متعددة"
-            
-            if sub_type == "b2":
-                sub_name = f"عرض منصتين ({platforms_str})"
-            elif sub_type == "b3":
-                sub_name = f"عرض 3 منصات ({platforms_str})"
-            else:
-                sub_name = f"الباكج الشامل (4 منصات: {platforms_str})"
-        else:
-            sub_name = p_names.get(sub_type, "اشتراك رقمي")
-
-        if sub_type == "b2":
-            prices = {"1m": "5 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "38 دينار"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-        elif sub_type == "b3":
-            prices = {"1m": "6 دنانير", "3m": "15 دينار", "6m": "28 دينار", "1y": "48 دينار"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-        elif sub_type == "b4":
-            prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-        elif sub_type == "tod":
-            prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر"}
-        elif sub_type == "snap_gift":
-            prices = {"3m": "11 دينار", "6m": "19 دينار", "1y": "27 دينار"}
-            dur_map = {"3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-        elif sub_type == "snap_private":
-            prices = {"1m": "3 دنانير", "1y": "16 دينار"}
-            dur_map = {"1m": "شهر واحد", "1y": "سنة كاملة"}
-        elif sub_type == "chatgpt_shared":
-            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-        elif sub_type == "chatgpt_private":
-            prices = {"1m": "8 دنانير"}
-            dur_map = {"1m": "شهر واحد"}
-        else:
-            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
-            dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
-
-        price = prices.get(duration, "حسب الباقة")
-        dur_text = dur_map.get(duration, "")
-
-        context.user_data['sub_name_text'] = sub_name
-        context.user_data['dur_text'] = dur_text
-        context.user_data['price_text'] = price
-
-        summary_text = (
-            "🛒 ملخص طلب الاشتراك\n\n"
-            f"📌 الخدمة / الباقة: {sub_name}\n"
-            f"⏳ المدة: {dur_text}\n"
-            f"💵 السعر الإجمالي: {price}\n\n"
-        )
-
-        if sub_type == "snap_gift":
-            summary_text += "📦 **الوصف:** يتم الإهداء عن طريق الإضافة فقط، ومضمون طوال فترة الاشتراك.\n\n"
-        elif sub_type == "snap_private":
-            summary_text += "📦 **الوصف:** يتم دخول الحساب لتفعيل الاشتراك والخصم، ونرجو التأكد أن بياناتكم بأمان.\n\n"
-        elif sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
-            summary_text += "⚠️ **ملاحظة هامة:** في الاشتراكات المشتركة طويلة الأجل (3 أشهر، 6 أشهر، سنة)، يتم تزويدك **بكل شهر بإيميل مختلف** لضمان استمرارية الضمان.\n\n"
-
-        summary_text += "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
-        
-        if sub_type.startswith("b"):
-            back_target = f"bundle_init_{sub_type.replace('b', '')}"
-        elif sub_type.startswith("snap_"):
-            back_target = f"{sub_type}_menu"
-        elif sub_type == "chatgpt_shared":
-            back_target = "sub_chatgpt_shared_menu"
-        elif sub_type == "chatgpt_private":
-            back_target = "sub_chatgpt_menu"
-        else:
-            back_target = f"sub_{sub_type}"
-
-        buy_keyboard = [
-            [InlineKeyboardButton("💳 شراء وإتمام الدفع", callback_data=f"buy_{sub_type}_{duration}")],
-            [InlineKeyboardButton("⬅️ رجوع", callback_data=back_target)]
-        ]
-        await query.message.edit_text(summary_text, reply_markup=InlineKeyboardMarkup(buy_keyboard))
-
-    elif data.startswith("buy_"):
-        parts = data.split("_")
-        
-        if parts[1] == "chatgpt":
-            sub_type = f"{parts[1]}_{parts[2]}"
-            duration = parts[3]
-        elif parts[1] == "snap":
-            sub_type = f"{parts[1]}_{parts[2]}"
-            duration = parts[3]
-        else:
-            sub_type = parts[1]
-            duration = parts[2]
-
-        if sub_type == "b2":
-            prices = {"1m": "5 دنانير", "3m": "12 دينار", "6m": "22 دينار", "1y": "38 دينار"}
-        elif sub_type == "b3":
-            prices = {"1m": "6 دنانير", "3m": "15 دينار", "6m": "28 دينار", "1y": "48 دينار"}
-        elif sub_type == "b4":
-            prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
-        elif sub_type == "tod":
-            prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
-        elif sub_type == "snap_gift":
-            prices = {"3m": "11 دينار", "6m": "19 دينار", "1y": "27 دينار"}
-        elif sub_type == "snap_private":
-            prices = {"1m": "3 دنانير", "1y": "16 دينار"}
-        elif sub_type == "chatgpt_shared":
-            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
-        elif sub_type == "chatgpt_private":
-            prices = {"1m": "8 دنانير"}
-        else:
-            prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
-
-        price = prices.get(duration, "حسب الباقة")
-
-        checkout_text = (
-            "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
-            f"{CLIQ_INFO}\n\n"
-            f"💵 المطلوب تحويله: {price}\n\n"
-            "📸 الخطوة الأخيرة: قم بتحويل المبلغ، ثم أرسل صورة (سكرين شوت) للإيصال هنا في الشات وسنقوم بتفعيل باقتك فوراً!"
-        )
-        
-        back_keyboard = [
-            [InlineKeyboardButton("⬅️ رجوع", callback_data=f"pkg_{sub_type}_{duration}")]
-        ]
-        await query.message.edit_text(checkout_text, reply_markup=InlineKeyboardMarkup(back_keyboard))
-        context.user_data['waiting_for_receipt'] = True
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    
-    is_member = await check_user_channel_membership(context.bot, user.id)
-    if not is_member:
-        await update.message.reply_text("⚠️ يرجى الاشتراك في قناة المتجر أولاً للاستمرار: https://t.me/El962Store")
-        return
-
-    if context.user_data.get('waiting_for_issue_description'):
-        platform_name = context.user_data.get('issue_platform', 'منصة رقمية')
-        issue_email = context.user_data.get('issue_email', 'غير محدد')
-        
+    # عروض التوفير
+    elif text == "🔥 عروض التوفير الكبرى":
         await update.message.reply_text(
-            "✅ **تم استلام صورة المشكلة وبلاغك بنجاح!**\n"
-            "فريق الدعم في متجر 962ElStore سيقوم بمراجعتها والرد عليك قريباً جداً ⏳"
+            "🔥 عروض التوفير الكبرى:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "👥 منصتان (5 JD)",
+                        callback_data="bundle_init_2"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "⭐ 3 منصات (6 JD)",
+                        callback_data="bundle_init_3"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "💎 4 منصات (8 JD)",
+                        callback_data="bundle_init_4"
+                    )
+                ]
+            ])
         )
 
-        admin_msg = (
-            "⚠️ **تنبيه: بلاغ مشكلة مع صورة من زبون!**\n\n"
-            f"👤 اسم الزبون: {user.full_name}\n"
-            f"🔗 يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون: {user.id}\n\n"
-            f"📦 المنصة: {platform_name}\n"
-            f"📧 البريد الإلكتروني للحساب:\n`{issue_email}`\n\n"
-            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
-            f"👇 انسخ هذا الأمر للرد:\n"
-            f"```\n/reply {user.id} ضع_الرد_هنا\n```"
+    # طلب كود
+    elif text == "🔑 طلب كود":
+        await update.message.reply_text(
+            "اختر نوع الكود:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🔑 كود تسجيل دخول",
+                        callback_data="code_login_menu"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "🏠 كود سكن Netflix",
+                        callback_data="code_household"
+                    )
+                ]
+            ])
         )
 
-        markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
-        ])
+    # مشكلة في حسابي
+    elif text == "⚠️ مشكلة في حسابي":
+        codes = [
+            "netflix",
+            "shahid",
+            "osn",
+            "disney",
+            "noor",
+            "tod",
+            "snapchat",
+            "chatgpt"
+        ]
 
-        try:
-            msgs = await send_order_to_admins(context, admin_msg, markup, photo=update.message.photo[-1].file_id)
-            active_admin_messages[str(user.id)] = msgs
-        except Exception as e:
-            print(f"Error: {e}")
+        await update.message.reply_text(
+            "اختر المنصة التي تواجه مشكلة فيها:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        platform_name(x),
+                        callback_data="issue_" + x
+                    )
+                ]
+                for x in codes
+            ])
+        )
 
-        context.user_data['waiting_for_issue_description'] = False
+    # الدعم
+    elif text == "🛠 التواصل مع الدعم":
+        await update.message.reply_text(
+            "للتواصل مع الدعم الفني:\n" + SUPPORT_USERNAME
+        )
+
+
+async def button_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    q = update.callback_query
+    user = q.from_user
+    data = q.data
+
+    await q.answer()
+
+    # التحقق من الاشتراك
+    if data == "verify_subscription":
+        if await is_member(context.bot, user.id):
+            database.save_customer(user)
+
+            await q.message.edit_text(
+                "✅ تم التحقق من اشتراكك."
+            )
+
+            await q.message.reply_text(
+                "القائمة الرئيسية:",
+                reply_markup=main_menu()
+            )
+
+        else:
+            await q.message.reply_text(
+                "❌ لم تشترك بالقناة بعد. اشترك ثم أعد التحقق."
+            )
+
         return
 
-    if context.user_data.get('waiting_for_receipt'):
-        current_sub = context.user_data.get('current_sub', 'default')
-        receipt_text = RECEIPT_INSTRUCTIONS.get(current_sub, RECEIPT_INSTRUCTIONS['default'])
-
-        await update.message.reply_text(receipt_text)
-
-        sub_name = context.user_data.get('sub_name_text', 'باقة ترفيهية')
-        dur_text = context.user_data.get('dur_text', 'غير محدد')
-        price_text = context.user_data.get('price_text', 'غير محدد')
-
-        admin_message = (
-            "🚨 طلب اشتراك جديد تم دفع إيصاله (962ElStore)!\n\n"
-            f"اسم الزبون: {user.full_name}\n"
-            f"يوزر الزبون: @{user.username if user.username else 'لا يوجد'}\n"
-            f"🆔 معرف الزبون: {user.id}\n\n"
-            f"الخدمة / الباقة: {sub_name}\n"
-            f"المدة: {dur_text}\n"
-            f"السعر المدفوع: {price_text}\n\n"
-            f"🟢 حالة الطلب: لم يتم الاستلام بعد\n\n"
-            f"👇 انسخ هذا الأمر للرد:\n"
-            f"```\n/reply {user.id} ضع_معلومات_الحساب_هنا\n```"
-        )
-
-        markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
-        ])
+    # استلام الطلب
+    if data.startswith("claim_"):
+        if not is_admin(user.id):
+            await q.message.reply_text(
+                "هذا الزر للإدارة فقط."
+            )
+            return
 
         try:
-            msgs = await send_order_to_admins(context, admin_message, markup, photo=update.message.photo[-1].file_id)
-            active_admin_messages[str(user.id)] = msgs
-        except Exception as e:
-            print(f"Error: {e}")
+            order_id = int(data.split("_", 1)[1])
 
-        context.user_data['waiting_for_receipt'] = False
+            ok = database.claim_order(
+                order_id,
+                user.id
+            )
+
+            await q.message.reply_text(
+                "✅ تم استلام الطلب."
+                if ok
+                else "⚠️ الطلب مستلم مسبقاً أو غير موجود."
+            )
+
+            if ok:
+                await q.message.edit_reply_markup(
+                    reply_markup=None
+                )
+
+                await q.message.reply_text(
+                    f"تم استلام الطلب رقم {order_id} بواسطة {user.full_name}"
+                )
+
+        except Exception as exc:
+            await q.message.reply_text(str(exc))
+
+        return
+
+    # بلاغ مشكلة
+    if data.startswith("issue_"):
+        code = data.replace("issue_", "", 1)
+
+        context.user_data["issue_platform"] = platform_name(code)
+        context.user_data["waiting_for_issue_email"] = True
+
+        await q.message.edit_text(
+            "أرسل البريد الإلكتروني أو اسم الحساب المرتبط بالمشكلة."
+        )
+
+        return
+
+    # الرجوع
+    if data == "back_to_main":
+        await q.message.edit_text(
+            "اختر المنصة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        platform_name(x),
+                        callback_data="sub_" + x
+                    )
+                ]
+                for x in [
+                    "netflix",
+                    "shahid",
+                    "osn",
+                    "disney",
+                    "noor",
+                    "tod"
+                ]
+            ])
+        )
+
+        return
+
+    if data == "back_to_bundles":
+        await q.message.edit_text(
+            "اختر الباقة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "منصتان",
+                        callback_data="bundle_init_2"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "3 منصات",
+                        callback_data="bundle_init_3"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "4 منصات",
+                        callback_data="bundle_init_4"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    # قائمة الأكواد
+    if data == "code_login_menu":
+        await q.message.edit_text(
+            "اختر المنصة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        platform_name(x),
+                        callback_data="login_code_" + x
+                    )
+                ]
+                for x in [
+                    "netflix",
+                    "osn",
+                    "disney",
+                    "chatgpt"
+                ]
+            ])
+        )
+
+        return
+
+    if data == "code_household":
+        await q.message.edit_text(
+            "طلب كود سكن Netflix. اضغط للمتابعة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "Netflix Household",
+                        callback_data="hh_netflix"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    if data == "hh_netflix":
+        context.user_data[
+            "waiting_for_netflix_household_email"
+        ] = True
+
+        await q.message.edit_text(
+            "أرسل البريد الإلكتروني لحساب Netflix."
+        )
+
+        return
+
+    if data.startswith("login_code_"):
+        context.user_data["login_code_platform"] = platform_name(
+            data.replace("login_code_", "")
+        )
+
+        context.user_data[
+            "waiting_for_login_code_email"
+        ] = True
+
+        await q.message.edit_text(
+            "أرسل البريد الإلكتروني أو معلومات الحساب لطلب الكود."
+        )
+
+        return
+
+    # Snapchat+
+    if data == "sub_snapchat_menu":
+        await q.message.edit_text(
+            "اختر نوع Snapchat+:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "إهداء",
+                        callback_data="snap_gift_menu"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "من داخل الحساب",
+                        callback_data="snap_private_menu"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    if data == "snap_gift_menu":
+        choices = [
+            ("3 أشهر (11 JD)", "pkg_snap_gift_3m"),
+            ("6 أشهر (19 JD)", "pkg_snap_gift_6m"),
+            ("سنة (27 JD)", "pkg_snap_gift_1y")
+        ]
+
+        await q.message.edit_text(
+            "Snapchat+ إهداء:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(a, callback_data=b)
+                ]
+                for a, b in choices
+            ])
+        )
+
+        return
+
+    if data == "snap_private_menu":
+        choices = [
+            ("شهر (3 JD)", "pkg_snap_private_1m"),
+            ("سنة (16 JD)", "pkg_snap_private_1y")
+        ]
+
+        await q.message.edit_text(
+            "Snapchat+ من داخل الحساب:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(a, callback_data=b)
+                ]
+                for a, b in choices
+            ])
+        )
+
+        return
+
+    # ChatGPT
+    if data == "sub_chatgpt_menu":
+        await q.message.edit_text(
+            "اختر نوع ChatGPT:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "حساب مشترك",
+                        callback_data="sub_chatgpt_shared_menu"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "حساب خاص (8 JD)",
+                        callback_data="pkg_chatgpt_private_1m"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    if data == "sub_chatgpt_shared_menu":
+        choices = [
+            ("شهر 2.5 JD", "pkg_chatgpt_shared_1m"),
+            ("3 أشهر 5 JD", "pkg_chatgpt_shared_3m"),
+            ("6 أشهر 9 JD", "pkg_chatgpt_shared_6m"),
+            ("سنة 15 JD", "pkg_chatgpt_shared_1y")
+        ]
+
+        await q.message.edit_text(
+            "ChatGPT مشترك:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(a, callback_data=b)
+                ]
+                for a, b in choices
+            ])
+        )
+
+        return
+
+    # الاشتراكات الفردية
+    if data.startswith("sub_"):
+        code = data.replace("sub_", "")
+
+        if code not in (
+            "netflix",
+            "shahid",
+            "osn",
+            "disney",
+            "noor",
+            "tod"
+        ):
+            return
+
+        durations = [
+            ("شهر واحد (2.5 JD)", "1m"),
+            ("3 أشهر (5 JD)", "3m"),
+            ("6 أشهر (9 JD)", "6m"),
+            ("سنة (15 JD)", "1y")
+        ]
+
+        if code == "tod":
+            durations = [
+                ("شهر (6 JD)", "1m"),
+                ("3 أشهر (9 JD)", "3m")
+            ]
+
+        await q.message.edit_text(
+            platform_name(code) + " - اختر المدة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        label,
+                        callback_data=f"pkg_{code}_{dur}"
+                    )
+                ]
+                for label, dur in durations
+            ])
+        )
+
+        return
+
+    # اختيار الباقات
+    if data.startswith("bundle_init_"):
+        count = int(data.rsplit("_", 1)[1])
+
+        context.user_data["bundle_target_count"] = count
+        context.user_data["selected_platforms"] = []
+        context.user_data["bundle_type"] = "b" + str(count)
+
+        await q.message.edit_text(
+            f"اختر {count} منصات:",
+            reply_markup=bundle_keyboard([], count)
+        )
+
+        return
+
+    if data.startswith("sel_") or data.startswith("unsel_"):
+        key = data.split("_", 1)[1]
+
+        selected = context.user_data.get(
+            "selected_platforms",
+            []
+        )
+
+        target = context.user_data.get(
+            "bundle_target_count",
+            2
+        )
+
+        if data.startswith("sel_"):
+            if key not in selected and len(selected) < target:
+                selected.append(key)
+
+        elif key in selected:
+            selected.remove(key)
+
+        context.user_data["selected_platforms"] = selected
+
+        await q.message.edit_reply_markup(
+            reply_markup=bundle_keyboard(selected, target)
+        )
+
+        return
+
+    if data == "proceed_to_duration":
+        count = context.user_data.get(
+            "bundle_target_count",
+            2
+        )
+
+        selected = context.user_data.get(
+            "selected_platforms",
+            []
+        )
+
+        if len(selected) != count:
+            await q.message.reply_text(
+                "أكمل اختيار المنصات أولاً."
+            )
+            return
+
+        b = "b" + str(count)
+
+        context.user_data["bundle_type"] = b
+
+        durations = {
+            "b2": [
+                ("شهر 5 JD", "1m"),
+                ("3 أشهر 12 JD", "3m"),
+                ("6 أشهر 22 JD", "6m"),
+                ("سنة 38 JD", "1y")
+            ],
+            "b3": [
+                ("شهر 6 JD", "1m"),
+                ("3 أشهر 15 JD", "3m"),
+                ("6 أشهر 28 JD", "6m"),
+                ("سنة 48 JD", "1y")
+            ],
+            "b4": [
+                ("شهر 8 JD", "1m"),
+                ("3 أشهر 20 JD", "3m"),
+                ("6 أشهر 36 JD", "6m"),
+                ("سنة 60 JD", "1y")
+            ]
+        }
+
+        await q.message.edit_text(
+            "اختر مدة الباقة:",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        a,
+                        callback_data=f"pkg_{b}_{d}"
+                    )
+                ]
+                for a, d in durations[b]
+            ])
+        )
+
+        return
+
+    # ملخص الطلب
+    if data.startswith("pkg_"):
+        sub_type, duration = parse_package(data, "pkg")
+
+        price, dur_text = price_and_duration(
+            sub_type,
+            duration
+        )
+
+        if sub_type.startswith("b"):
+            selected = context.user_data.get(
+                "selected_platforms",
+                []
+            )
+
+            if len(selected) != int(sub_type[1:]):
+                await q.message.reply_text(
+                    "يرجى اختيار المنصات من جديد."
+                )
+                return
+
+            name = (
+                platform_name(sub_type)
+                + " ("
+                + " + ".join(
+                    platform_name(x)
+                    for x in selected
+                )
+                + ")"
+            )
+
+        else:
+            name = platform_name(sub_type)
+
+        context.user_data.update({
+            "current_sub": sub_type,
+            "current_duration": duration,
+            "sub_name_text": name,
+            "dur_text": dur_text,
+            "price_value": str(price),
+            "price_text": f"{price} دينار"
+        })
+
+        await q.message.edit_text(
+            f"🛒 ملخص طلب الاشتراك\n\n"
+            f"الخدمة: {name}\n"
+            f"المدة: {dur_text}\n"
+            f"السعر: {price} دينار\n\n"
+            "اضغط شراء لإتمام الدفع.",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "💳 شراء وإتمام الدفع",
+                        callback_data=f"buy_{sub_type}_{duration}"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "⬅️ رجوع",
+                        callback_data="back_to_main"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    # إتمام الشراء
+    if data.startswith("buy_"):
+        sub_type, duration = parse_package(data, "buy")
+
+        price, dur_text = price_and_duration(
+            sub_type,
+            duration
+        )
+
+        context.user_data.update({
+            "current_sub": sub_type,
+            "current_duration": duration,
+            "price_value": str(price),
+            "price_text": f"{price} دينار",
+            "dur_text": dur_text,
+            "waiting_for_receipt": True
+        })
+
+        await q.message.edit_text(
+            "💳 معلومات الدفع عبر كليك (CliQ)\n\n"
+            + CLIQ_INFO
+            + f"\n\nالمبلغ المطلوب: {price} دينار\n\n"
+            "بعد التحويل أرسل صورة الإيصال هنا.",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "⬅️ رجوع",
+                        callback_data=f"pkg_{sub_type}_{duration}"
+                    )
+                ]
+            ])
+        )
+
+        return
+
+    # لوحة الإدارة المالية
+    if data.startswith("fin_"):
+        if not is_admin(user.id):
+            await q.message.reply_text(
+                "هذه اللوحة للإدارة فقط."
+            )
+            return
+
+        if data == "fin_report":
+            rows = database.financial_report()
+
+            labels = {
+                "owner": "أموال صاحب المتجر",
+                "shared": "رأس المال المشترك",
+                "operating": "الأموال التشغيلية"
+            }
+
+            body = "📊 أرصدة المحافظ\n\n"
+
+            body += "\n".join(
+                f"{labels.get(r['fund_source'], r['fund_source'])}: "
+                f"{r['balance']} د.أ"
+                for r in rows
+            )
+
+            await q.message.reply_text(body)
+
+        elif data == "fin_profit":
+            r = database.profit_report()
+
+            await q.message.reply_text(
+                f"📈 تقرير الأرباح\n"
+                f"المبيعات: {r['sales']} د.أ\n"
+                f"تكلفة الاشتراكات: {r['costs']} د.أ\n"
+                f"المصاريف: {r['expenses']} د.أ\n"
+                f"صافي الربح: {r['net_profit']} د.أ"
+            )
+
+        elif data == "fin_history":
+            rows = database.recent_transactions()
+
+            if not rows:
+                await q.message.reply_text(
+                    "لا توجد عمليات مسجلة."
+                )
+
+            else:
+                await q.message.reply_text(
+                    "\n".join(
+                        f"#{r['id']} | {r['transaction_type']} | "
+                        f"{r['fund_source']} | {r['amount']} د.أ\n"
+                        f"{r['description']}"
+                        for r in rows
+                    )
+                )
+
+        elif data == "fin_stock":
+            rows = database.inventory_list()
+
+            if not rows:
+                await q.message.reply_text(
+                    "المخزون فارغ."
+                )
+
+            else:
+                await q.message.reply_text(
+                    "\n".join(
+                        f"#{r['id']} {r['item_name']}: "
+                        f"{r['quantity']} | قيمة {r['stock_value']} د.أ"
+                        for r in rows
+                    )
+                )
+
+            await q.message.reply_text(
+                "لإضافة مخزون أرسل:\n"
+                "/stock اسم الصنف | الكمية | تكلفة الوحدة | مصدر الأموال"
+            )
+
+        else:
+            prompts = {
+                "fin_income": (
+                    "income",
+                    "أرسل: المبلغ | owner أو shared أو operating | الوصف"
+                ),
+                "fin_expense": (
+                    "expense",
+                    "أرسل: المبلغ | التصنيف | owner أو shared أو operating | الوصف"
+                ),
+                "fin_capital": (
+                    "capital",
+                    "أرسل: المبلغ | owner أو shared أو operating | in أو out | الوصف"
+                ),
+                "fin_transfer": (
+                    "transfer",
+                    "أرسل: المبلغ | المحفظة المصدر | المحفظة المستقبلة | الوصف"
+                ),
+                "fin_count": (
+                    "count",
+                    "أرسل: المحفظة (owner/shared/operating) | الرصيد الفعلي | ملاحظات"
+                )
+            }
+
+            action, prompt = prompts[data]
+
+            context.user_data["finance_wait"] = action
+
+            await q.message.reply_text(prompt)
+
+        return
+
+
+async def handle_photo(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    user = update.effective_user
+
+    if not await ensure_member(update):
+        return
+
+    photo_id = update.message.photo[-1].file_id
+
+    # صورة مشكلة الحساب
+    if context.user_data.get("waiting_for_issue_description"):
+        context.user_data["waiting_for_issue_description"] = False
+
+        await notify_admins(
+            context,
+            f"⚠️ بلاغ مشكلة مع صورة\n"
+            f"الاسم: {user.full_name}\n"
+            f"المعرف: {user.id}\n"
+            f"المنصة: {context.user_data.get('issue_platform', 'غير محدد')}\n"
+            f"الحساب: {context.user_data.get('issue_email', 'غير محدد')}",
+            photo=photo_id
+        )
+
+        await update.message.reply_text(
+            "✅ تم إرسال البلاغ والصورة للدعم."
+        )
+
+        return
+
+    # صورة إيصال الدفع
+    if context.user_data.get("waiting_for_receipt"):
+        sub = context.user_data.get(
+            "current_sub",
+            ""
+        )
+
+        price = Decimal(
+            context.user_data.get(
+                "price_value",
+                "0"
+            )
+        )
+
+        name = context.user_data.get(
+            "sub_name_text",
+            platform_name(sub)
+        )
+
+        dur_text = context.user_data.get(
+            "dur_text",
+            ""
+        )
+
+        try:
+            order_id = database.create_order(
+                user.id,
+                name,
+                dur_text,
+                price,
+                photo_id
+            )
+
+        except Exception:
+            log.exception("Could not save order")
+
+            await update.message.reply_text(
+                "تعذر تسجيل الطلب حالياً. حاول لاحقاً أو تواصل مع الدعم."
+            )
+
+            return
+
+        context.user_data["waiting_for_receipt"] = False
+
+        await update.message.reply_text(
+            RECEIPT_INSTRUCTIONS.get(
+                sub,
+                RECEIPT_INSTRUCTIONS["default"]
+            )
+            + "\n\nرقم طلبك: "
+            + str(order_id)
+            + "\nستراجع الإدارة الحوالة وتتواصل معك."
+        )
+
+        await notify_admins(
+            context,
+            f"🚨 طلب اشتراك جديد #{order_id}\n"
+            f"الاسم: {user.full_name}\n"
+            f"المعرف: {user.id}\n"
+            f"الخدمة: {name}\n"
+            f"المدة: {dur_text}\n"
+            f"السعر: {price} د.أ\n"
+            f"الحالة: بانتظار الاستلام\n\n"
+            f"بعد التحقق من الحوالة استخدم:\n"
+            f"/complete {order_id} COST INCOME_SOURCE COST_SOURCE\n"
+            f"مثال: /complete {order_id} 1.50 operating shared",
+            photo=photo_id,
+            keyboard=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🙋 استلام الطلب",
+                        callback_data=f"claim_{order_id}"
+                    )
+                ]
+            ])
+        )
+
     else:
-        await update.message.reply_text("يرجى استخدام الأزرار في القائمة للتنقل بسلاسة.")
+        await update.message.reply_text(
+            "يرجى استخدام أزرار القائمة."
+        )
+
+
+# إضافة مخزون
+async def stock_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if not is_admin(update.effective_user.id):
+        return
+
+    raw = " ".join(context.args)
+
+    try:
+        name, qty, cost, source = [
+            x.strip()
+            for x in raw.split("|")
+        ]
+
+        database.add_stock(
+            name,
+            qty,
+            cost,
+            update.effective_user.id,
+            source
+        )
+
+        await update.message.reply_text(
+            "✅ تمت إضافة المخزون."
+        )
+
+    except Exception as exc:
+        await update.message.reply_text(
+            "الصيغة الصحيحة:\n"
+            "/stock اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n\n"
+            f"{exc}"
+        )
+
+
+# إغلاق الطلب وتسجيل التكلفة والربح
+async def complete_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if not is_admin(update.effective_user.id):
+        return
+
+    if len(context.args) != 4:
+        await update.message.reply_text(
+            "الصيغة:\n"
+            "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE\n\n"
+            "مثال:\n"
+            "/complete 12 1.50 operating shared"
+        )
+        return
+
+    try:
+        order_id = int(context.args[0])
+        cost = context.args[1]
+        income_source = context.args[2]
+        cost_source = context.args[3]
+
+        database.complete_order(
+            order_id,
+            update.effective_user.id,
+            cost,
+            income_source,
+            cost_source
+        )
+
+        await update.message.reply_text(
+            "✅ تم إغلاق الطلب وتسجيل المبيعات والتكلفة."
+        )
+
+    except Exception as exc:
+        await update.message.reply_text(
+            f"❌ {exc}"
+        )
+
+
+async def admin_help(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    if not is_admin(update.effective_user.id):
+        return
+
+    await update.message.reply_text(
+        "أوامر الإدارة:\n"
+        "/admin - لوحة الإدارة\n"
+        "/reply USER_ID نص الرد\n"
+        "/stock اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n"
+        "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE\n\n"
+        "مهم: لا تغلق الطلب إلا بعد التحقق من الحوالة."
+    )
+
 
 def main():
-    while True:
-        try:
-            app = ApplicationBuilder().token(TOKEN).build()
-            
-            app.add_handler(CommandHandler("start", start))
-            app.add_handler(CommandHandler("reply", admin_reply))
-            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-            app.add_handler(CallbackQueryHandler(button_handler))
-            app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-            
-            print("962ElStore Bot is running smoothly with Snapchat+ & Single Claim Button...")
-            app.run_polling(drop_pending_updates=True)
-        except Exception as e:
-            print(f"Error: {e}. Restarting in 5 seconds...")
-            time.sleep(5)
+    # إنشاء جداول قاعدة البيانات عند التشغيل
+    database.init_db()
 
-if __name__ == '__main__':
+    log.info("962ElStore PostgreSQL connected")
+
+    app = (
+        ApplicationBuilder()
+        .token(TOKEN)
+        .build()
+    )
+
+    app.add_handler(
+        CommandHandler("start", start)
+    )
+
+    app.add_handler(
+        CommandHandler("reply", admin_reply)
+    )
+
+    app.add_handler(
+        CommandHandler("admin", admin_panel)
+    )
+
+    app.add_handler(
+        CommandHandler("helpadmin", admin_help)
+    )
+
+    app.add_handler(
+        CommandHandler("stock", stock_command)
+    )
+
+    app.add_handler(
+        CommandHandler("complete", complete_command)
+    )
+
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            handle_message
+        )
+    )
+
+    app.add_handler(
+        CallbackQueryHandler(button_handler)
+    )
+
+    app.add_handler(
+        MessageHandler(
+            filters.PHOTO,
+            handle_photo
+        )
+    )
+
+    app.run_polling(
+        drop_pending_updates=False
+    )
+
+
+if __name__ == "__main__":
     main()
