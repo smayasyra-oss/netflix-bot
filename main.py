@@ -604,8 +604,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "snap_gift_menu":
         kb = [
             [InlineKeyboardButton("🟢 3 أشهر (11 JD)", callback_data="pkg_snap_gift_3m")],
-            [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_snap_gift_6m")],
-            [InlineKeyboardButton("🟢 سنة كاملة (25 JD)", callback_data="pkg_snap_gift_1y")],
+            [InlineKeyboardButton("🟢 6 أشهر (19 JD)", callback_data="pkg_snap_gift_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (27 JD)", callback_data="pkg_snap_gift_1y")],
             [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_snapchat_menu")]
         ]
         await query.message.edit_text(
