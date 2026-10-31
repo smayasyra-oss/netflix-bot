@@ -109,6 +109,20 @@ RECEIPT_INSTRUCTIONS = {
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
         "📦 سيتم تزويدك بمعلومات حساب ChatGPT الخاص بك فوراً:\n"
         "⚠️ تنبيه هام: الحساب خاص بك وحدك ومحمي بالكامل طوال فترة الاشتراك."
+    ),
+    "snap_gift": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بتفاصيل إهداء سناب بلس قريباً:\n"
+        "• يرجى إضافة حسابي على سناب شات ليتم إرسال الاشتراك:\n"
+        "https://snapchat.com/t/oqpRPOYx\n"
+        "• يتم الإهداء عن طريق الإضافة فقط، ومضمون طوال فترة الاشتراك."
+    ),
+    "snap_private": (
+        "✅ تم استلام صورة الإيصال بنجاح!\n"
+        "شكراً لك لاختيارك متجر 962ElStore.\n\n"
+        "📦 سيتم تزويدك بمعلومات تفعيل سناب بلس قريباً:\n"
+        "• سيتم التواصل معك من قبل الإدارة لتزويدك بمعلومات تسجيل الدخول للحفاظ على الخصوصية."
     )
 }
 
@@ -243,7 +257,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"```\n/reply {user.id} ضع_الرد_هنا\n```"
         )
         
-        # زر استلام واحد مشترك لـ محمد وحسام
         markup = InlineKeyboardMarkup([
             [InlineKeyboardButton("🙋‍♂️ استلام الطلب", callback_data=f"claim_{user.id}")]
         ])
@@ -322,6 +335,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
+            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="sub_snapchat_menu")],
             [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
         ]
         await update.message.reply_text(
@@ -359,6 +373,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="issue_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="issue_noor")],
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="issue_tod")],
+            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="issue_snapchat")],
             [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="issue_chatgpt")]
         ]
         await update.message.reply_text(
@@ -410,7 +425,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("claim_"):
         target_user_id = data.split("_")[1]
         
-        # تحديد اسم الأدمن الذي ضغط على الزر تلقائياً بناءً على الـ ID الخاص به
         if user.id == 7983029778:
             claimer_name = "محمد 🟢"
         elif user.id == 5884539860:
@@ -478,6 +492,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "disney": "Disney+ - ديزني",
             "noor": "Noor Play - نور بلاي",
             "tod": "TOD - تود",
+            "snapchat": "Snapchat+ - سناب بلس",
             "chatgpt": "ChatGPT Plus - شات جي بي تي"
         }
         platform_name = p_map.get(p_code, "المنصة")
@@ -486,7 +501,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.message.edit_text(
             f"⚠️ **الإبلاغ عن مشكلة في حساب ({platform_name}):**\n\n"
-            "الرجاء إرسال **البريد الإلكتروني (الإيميل)** الخاص بالحساب الذي تواجه مشكلة فيه هنا في المحادثة الآن ✍️",
+            "الرجاء إرسال **البريد الإلكتروني (الإيميل) أو اسم الحساب** هنا في المحادثة الآن ✍️",
             parse_mode="Markdown"
         )
         return
@@ -499,6 +514,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✨ Disney+ - ديزني", callback_data="sub_disney")],
             [InlineKeyboardButton("🌙 Noor Play - نور بلاي", callback_data="sub_noor")],
             [InlineKeyboardButton("⚽ TOD - تود (رياضة وترفيه)", callback_data="sub_tod")],
+            [InlineKeyboardButton("👻 Snapchat+ - سناب بلس", callback_data="sub_snapchat_menu")],
             [InlineKeyboardButton("🤖 ChatGPT Plus - شات جي بي تي", callback_data="sub_chatgpt_menu")]
         ]
         await query.message.edit_text(
@@ -572,6 +588,40 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(
             "🎬 طلب كود سكن نتفليكس:\n\n"
             "الرجاء إرسال البريد الإلكتروني (الإيميل) الخاص بحساب نتفليكس هنا في المحادثة الآن ✍️"
+        )
+
+    elif data == "sub_snapchat_menu":
+        kb = [
+            [InlineKeyboardButton("🎁 سناب بلس - إهداء (Gift)", callback_data="snap_gift_menu")],
+            [InlineKeyboardButton("👤 سناب بلس - من داخل الحساب", callback_data="snap_private_menu")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="back_to_main")]
+        ]
+        await query.message.edit_text(
+            "👻 اختر نوع اشتراك Snapchat+ (سناب بلس):",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+
+    elif data == "snap_gift_menu":
+        kb = [
+            [InlineKeyboardButton("🟢 3 أشهر (11 JD)", callback_data="pkg_snap_gift_3m")],
+            [InlineKeyboardButton("🟢 6 أشهر (22 JD)", callback_data="pkg_snap_gift_6m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (25 JD)", callback_data="pkg_snap_gift_1y")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_snapchat_menu")]
+        ]
+        await query.message.edit_text(
+            "👻 اشتراك Snapchat+ (إهداء):\nاختر المدة المطلوبة:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+
+    elif data == "snap_private_menu":
+        kb = [
+            [InlineKeyboardButton("🟢 شهر واحد (3 JD)", callback_data="pkg_snap_private_1m")],
+            [InlineKeyboardButton("🟢 سنة كاملة (16 JD)", callback_data="pkg_snap_private_1y")],
+            [InlineKeyboardButton("⬅️ رجوع", callback_data="sub_snapchat_menu")]
+        ]
+        await query.message.edit_text(
+            "👻 اشتراك Snapchat+ (من داخل الحساب):\nاختر المدة المطلوبة:",
+            reply_markup=InlineKeyboardMarkup(kb)
         )
 
     elif data == "sub_chatgpt_menu":
@@ -709,6 +759,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if parts[1] == "chatgpt":
             sub_type = f"{parts[1]}_{parts[2]}"
             duration = parts[3]
+        elif parts[1] == "snap":
+            sub_type = f"{parts[1]}_{parts[2]}"
+            duration = parts[3]
         else:
             sub_type = parts[1]
             duration = parts[2]
@@ -722,6 +775,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "disney": "Disney+",
             "noor": "Noor Play",
             "tod": "TOD",
+            "snap_gift": "Snapchat+ (إهداء)",
+            "snap_private": "Snapchat+ (من داخل الحساب)",
             "chatgpt_shared": "ChatGPT Plus (مشترك)",
             "chatgpt_private": "ChatGPT Plus (خاص)"
         }
@@ -752,6 +807,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر"}
+        elif sub_type == "snap_gift":
+            prices = {"3m": "11 دينار", "6m": "22 دينار", "1y": "25 دينار"}
+            dur_map = {"3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
+        elif sub_type == "snap_private":
+            prices = {"1m": "3 دنانير", "1y": "16 دينار"}
+            dur_map = {"1m": "شهر واحد", "1y": "سنة كاملة"}
         elif sub_type == "chatgpt_shared":
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
@@ -776,13 +837,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💵 السعر الإجمالي: {price}\n\n"
         )
 
-        if sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
+        if sub_type == "snap_gift":
+            summary_text += "📦 **الوصف:** يتم الإهداء عن طريق الإضافة فقط، ومضمون طوال فترة الاشتراك.\n\n"
+        elif sub_type == "snap_private":
+            summary_text += "📦 **الوصف:** يتم دخول الحساب لتفعيل الاشتراك والخصم، ونرجو التأكد أن بياناتكم بأمان.\n\n"
+        elif sub_type == "chatgpt_shared" and duration in ["3m", "6m", "1y"]:
             summary_text += "⚠️ **ملاحظة هامة:** في الاشتراكات المشتركة طويلة الأجل (3 أشهر، 6 أشهر، سنة)، يتم تزويدك **بكل شهر بإيميل مختلف** لضمان استمرارية الضمان.\n\n"
 
         summary_text += "اضغط على زر 'شراء' أدناه لإتمام الدفع أو تراجع للخلف:"
         
         if sub_type.startswith("b"):
             back_target = f"bundle_init_{sub_type.replace('b', '')}"
+        elif sub_type.startswith("snap_"):
+            back_target = f"{sub_type}_menu"
         elif sub_type == "chatgpt_shared":
             back_target = "sub_chatgpt_shared_menu"
         elif sub_type == "chatgpt_private":
@@ -802,6 +869,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if parts[1] == "chatgpt":
             sub_type = f"{parts[1]}_{parts[2]}"
             duration = parts[3]
+        elif parts[1] == "snap":
+            sub_type = f"{parts[1]}_{parts[2]}"
+            duration = parts[3]
         else:
             sub_type = parts[1]
             duration = parts[2]
@@ -814,6 +884,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prices = {"1m": "8 دنانير", "3m": "20 دينار", "6m": "36 دينار", "1y": "60 دينار"}
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
+        elif sub_type == "snap_gift":
+            prices = {"3m": "11 دينار", "6m": "22 دينار", "1y": "25 دينار"}
+        elif sub_type == "snap_private":
+            prices = {"1m": "3 دنانير", "1y": "16 دينار"}
         elif sub_type == "chatgpt_shared":
             prices = {"1m": "2.5 دينار", "3m": "5 دنانير", "6m": "9 دنانير", "1y": "15 دينار"}
         elif sub_type == "chatgpt_private":
@@ -926,7 +1000,7 @@ def main():
             app.add_handler(CallbackQueryHandler(button_handler))
             app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
             
-            print("962ElStore Bot is running smoothly with Single Claim Button...")
+            print("962ElStore Bot is running smoothly with Snapchat+ & Single Claim Button...")
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             print(f"Error: {e}. Restarting in 5 seconds...")
