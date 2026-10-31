@@ -445,6 +445,10 @@ def admin_keyboard():
             InlineKeyboardButton(
                 "📋 جرد المحفظة",
                 callback_data="fin_count"
+            ),
+            InlineKeyboardButton(
+                "⚡ دليل أوامر الأدمن",
+                callback_data="admin_help_menu"
             )
         ]
     ])
@@ -789,6 +793,20 @@ async def button_handler(
     data = q.data
 
     await q.answer()
+
+    if data == "admin_help_menu":
+        await q.message.reply_text(
+            "⚡ دليل أوامر الإدارة السريعة:\n\n"
+            "1️⃣ لإضافة مخزون:\n"
+            "/stock اسم الصنف | الكمية | تكلفة الوحدة | operating\n\n"
+            "2️⃣ لإغلاق الطلب:\n"
+            "/complete رقم_الطلب التكلفة مصدر_الدخل مصدر_التكلفة\n\n"
+            "3️⃣ للرد على زبون:\n"
+            "/reply المعرف_التعريفي نص_الرد\n\n"
+            "4️⃣ لوحة التحكم المالية:\n"
+            "تظهر لك بالضغط على زر /admin"
+        )
+        return
 
     if data == "verify_subscription":
         if await is_member(context.bot, user.id):
@@ -1510,9 +1528,10 @@ async def handle_photo(
             f"المدة: {dur_text}\n"
             f"السعر: {price} د.أ\n"
             f"الحالة: بانتظار الاستلام\n\n"
-            f"بعد التحقق من الحوالة استخدم:\n"
-            f"/complete {order_id} COST INCOME_SOURCE COST_SOURCE\n"
-            f"مثال: /complete {order_id} 0 operating shared",
+            f"بعد التحقق من الحوالة استخدم الأمر التالي:\n"
+            f"/complete {order_id} التكلفة مصدر_الدخل مصدر_التكلفة\n"
+            f"مثال لإغلاق الطلب:\n"
+            f"/complete {order_id} 0 operating shared",
             photo=photo_id,
             keyboard=InlineKeyboardMarkup([
                 [
