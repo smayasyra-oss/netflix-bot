@@ -604,7 +604,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\n\nرقم طلبك: {order_id}\nستراجع الإدارة الحوالة وتتواصل معك."
         )
 
-        # رسالة الأدمن مع أمر الإرسال السريع لكي تنسخه وتلصقه فوراً
         await notify_admins(
             context,
             f"🚨 طلب اشتراك جديد #{order_id}\n"
