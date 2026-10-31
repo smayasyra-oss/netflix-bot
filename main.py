@@ -492,7 +492,7 @@ async def admin_reply(
 
     if len(context.args) < 2:
         await update.message.reply_text(
-            "الاستخدام: /رد USER_ID نص الرسالة"
+            "الاستخدام: /reply USER_ID نص الرسالة"
         )
         return
 
@@ -609,7 +609,7 @@ async def handle_message(
 
             else:
                 await update.message.reply_text(
-                    "❌ صيغة الإدخال غير صحيحة. افتح /ادمن واتبع الصيغة الموضحة."
+                    "❌ صيغة الإدخال غير صحيحة. افتح /admin واتبع الصيغة الموضحة."
                 )
 
         except Exception as exc:
@@ -1388,7 +1388,7 @@ async def button_handler(
 
             await q.message.reply_text(
                 "لإضافة مخزون أرسل:\n"
-                "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | مصدر الأموال"
+                "/stock اسم الصنف | الكمية | تكلفة الوحدة | مصدر الأموال"
             )
 
         else:
@@ -1511,8 +1511,8 @@ async def handle_photo(
             f"السعر: {price} د.أ\n"
             f"الحالة: بانتظار الاستلام\n\n"
             f"بعد التحقق من الحوالة استخدم:\n"
-            f"/اكتمال {order_id} التكلفة مصدر_الدخل مصدر_التكلفة\n"
-            f"مثال: /اكتمال {order_id} 0 operating shared",
+            f"/complete {order_id} COST INCOME_SOURCE COST_SOURCE\n"
+            f"مثال: /complete {order_id} 0 operating shared",
             photo=photo_id,
             keyboard=InlineKeyboardMarkup([
                 [
@@ -1560,7 +1560,7 @@ async def stock_command(
     except Exception as exc:
         await update.message.reply_text(
             "الصيغة الصحيحة لإضافة مخزون:\n"
-            "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n\n"
+            "/stock اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n\n"
             f"خطأ: {exc}"
         )
 
@@ -1575,9 +1575,9 @@ async def complete_command(
     if len(context.args) != 4:
         await update.message.reply_text(
             "الصيغة الصحيحة لإغلاق الطلب:\n"
-            "/اكتمال رقم_الطلب التكلفة مصدر_الدخل مصدر_التكلفة\n\n"
+            "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE\n\n"
             "مثال:\n"
-            "/اكتمال 2 0 operating shared"
+            "/complete 2 0 operating shared"
         )
         return
 
@@ -1614,10 +1614,10 @@ async def admin_help(
 
     await update.message.reply_text(
         "أوامر الإدارة المتاحة:\n"
-        "/ادمن - لوحة الإدارة\n"
-        "/رد USER_ID نص الرد - للرد على الزبائن\n"
-        "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | مصدر_الأموال - لإضافة بضاعة\n"
-        "/اكتمال رقم_الطلب التكلفة مصدر_الدخل مصدر_التكلفة - لإغلاق الطلب\n\n"
+        "/admin - لوحة الإدارة\n"
+        "/reply USER_ID نص الرد - للرد على الزبائن\n"
+        "/stock اسم الصنف | الكمية | تكلفة الوحدة | مصدر_الأموال - لإضافة بضاعة\n"
+        "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE - لإغلاق الطلب\n\n"
         "مهم: لا تغلق الطلب إلا بعد التحقق من الحوالة."
     )
 
@@ -1633,52 +1633,17 @@ def main():
         .build()
     )
 
-        app.add_handler(
-        CommandHandler("start", start)
-    )
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("reply", admin_reply))
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CommandHandler("helpadmin", admin_help))
+    app.add_handler(CommandHandler("stock", stock_command))
+    app.add_handler(CommandHandler("complete", complete_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    app.add_handler(
-        CommandHandler("reply", admin_reply)
-    )
-
-    app.add_handler(
-        CommandHandler("admin", admin_panel)
-    )
-
-    app.add_handler(
-        CommandHandler("helpadmin", admin_help)
-    )
-
-    app.add_handler(
-        CommandHandler("stock", stock_command)
-    )
-
-    app.add_handler(
-        CommandHandler("complete", complete_command)
-    )
-
-
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            handle_message
-        )
-    )
-
-    app.add_handler(
-        CallbackQueryHandler(button_handler)
-    )
-
-    app.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo
-        )
-    )
-
-    app.run_polling(
-        drop_pending_updates=False
-    )
+    app.run_polling(drop_pending_updates=False)
 
 
 if __name__ == "__main__":
