@@ -808,7 +808,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
             dur_map = {"1m": "شهر واحد", "3m": "3 أشهر"}
         elif sub_type == "snap_gift":
-            prices = {"3m": "11 دينار", "6m": "22 دينار", "1y": "25 دينار"}
+            prices = {"3m": "11 دينار", "6m": "19 دينار", "1y": "27 دينار"}
             dur_map = {"3m": "3 أشهر", "6m": "6 أشهر", "1y": "سنة كاملة"}
         elif sub_type == "snap_private":
             prices = {"1m": "3 دنانير", "1y": "16 دينار"}
