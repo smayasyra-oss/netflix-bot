@@ -99,7 +99,7 @@ RECEIPT_INSTRUCTIONS = {
     "snap_private": (
         "✅ تم استلام صورة الإيصال بنجاح!\n"
         "شكراً لك لاختيارك متجر 962ElStore.\n\n"
-        "📦 سيتم التواصل معك من قبل الإدارة لتفعيل سناب بلس."
+        "📦 سيتم التواصل معك من قبل الإدارة لتفعيل سناب بلس للحفاظ على الخصوصيه."
     )
 }
 
@@ -300,8 +300,8 @@ def price_and_duration(sub_type, duration):
         },
         "snap_gift": {
             "3m": 11,
-            "6m": 19,
-            "1y": 27
+            "6m": 22,
+            "1y": 25
         },
         "snap_private": {
             "1m": 3,
@@ -528,7 +528,6 @@ async def handle_message(
 
     text = (update.message.text or "").strip()
 
-    # استقبال إدخالات الإدارة المالية
     action = context.user_data.get("finance_wait")
 
     if action:
@@ -620,7 +619,6 @@ async def handle_message(
 
         return
 
-    # بلاغ مشكلة الحساب
     if context.user_data.get("waiting_for_issue_email"):
         context.user_data["issue_email"] = text
         context.user_data["waiting_for_issue_email"] = False
@@ -650,7 +648,6 @@ async def handle_message(
         )
         return
 
-    # طلب كود تسجيل الدخول أو كود السكن
     if (
         context.user_data.get("waiting_for_login_code_email")
         or context.user_data.get("waiting_for_netflix_household_email")
@@ -685,7 +682,6 @@ async def handle_message(
         )
         return
 
-    # الاشتراكات الفردية
     if text == "🛒 الاشتراكات الفردية":
         rows = [
             [("🎬 Netflix - نتفليكس", "sub_netflix")],
@@ -709,7 +705,6 @@ async def handle_message(
             ])
         )
 
-    # عروض التوفير
     elif text == "🔥 عروض التوفير الكبرى":
         await update.message.reply_text(
             "🔥 عروض التوفير الكبرى:",
@@ -735,7 +730,6 @@ async def handle_message(
             ])
         )
 
-    # طلب كود
     elif text == "🔑 طلب كود":
         await update.message.reply_text(
             "اختر نوع الكود:",
@@ -755,7 +749,6 @@ async def handle_message(
             ])
         )
 
-    # مشكلة في حسابي
     elif text == "⚠️ مشكلة في حسابي":
         codes = [
             "netflix",
@@ -781,7 +774,6 @@ async def handle_message(
             ])
         )
 
-    # الدعم
     elif text == "🛠 التواصل مع الدعم":
         await update.message.reply_text(
             "للتواصل مع الدعم الفني:\n" + SUPPORT_USERNAME
@@ -798,7 +790,6 @@ async def button_handler(
 
     await q.answer()
 
-    # التحقق من الاشتراك
     if data == "verify_subscription":
         if await is_member(context.bot, user.id):
             database.save_customer(user)
@@ -819,7 +810,6 @@ async def button_handler(
 
         return
 
-    # استلام الطلب
     if data.startswith("claim_"):
         if not is_admin(user.id):
             await q.message.reply_text(
@@ -855,7 +845,6 @@ async def button_handler(
 
         return
 
-    # بلاغ مشكلة
     if data.startswith("issue_"):
         code = data.replace("issue_", "", 1)
 
@@ -868,7 +857,6 @@ async def button_handler(
 
         return
 
-    # الرجوع
     if data == "back_to_main":
         await q.message.edit_text(
             "اختر المنصة:",
@@ -919,7 +907,6 @@ async def button_handler(
 
         return
 
-    # قائمة الأكواد
     if data == "code_login_menu":
         await q.message.edit_text(
             "اختر المنصة:",
@@ -982,7 +969,6 @@ async def button_handler(
 
         return
 
-    # Snapchat+
     if data == "sub_snapchat_menu":
         await q.message.edit_text(
             "اختر نوع Snapchat+:",
@@ -1007,18 +993,22 @@ async def button_handler(
     if data == "snap_gift_menu":
         choices = [
             ("3 أشهر (11 JD)", "pkg_snap_gift_3m"),
-            ("6 أشهر (19 JD)", "pkg_snap_gift_6m"),
-            ("سنة (27 JD)", "pkg_snap_gift_1y")
+            ("6 أشهر (22 JD)", "pkg_snap_gift_6m"),
+            ("سنة (25 JD)", "pkg_snap_gift_1y")
         ]
 
         await q.message.edit_text(
-            "Snapchat+ إهداء:",
+            "Snapchat+ إهداء:\n"
+            "• يرجى إضافة حساب المتجر على سناب شات:\n"
+            "https://snapchat.com/t/oqpRPOYx\n"
+            "• اختر المدة المطلوبة:",
             reply_markup=InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton(a, callback_data=b)
                 ]
                 for a, b in choices
-            ])
+            ]),
+            disable_web_page_preview=True
         )
 
         return
@@ -1030,7 +1020,9 @@ async def button_handler(
         ]
 
         await q.message.edit_text(
-            "Snapchat+ من داخل الحساب:",
+            "Snapchat+ من داخل الحساب:\n"
+            "• سيتم التواصل معك من قبل الإدارة لتزويدك بمعلومات تسجيل الدخول للحفاظ على الخصوصيه.\n"
+            "• اختر المدة المطلوبة:",
             reply_markup=InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton(a, callback_data=b)
@@ -1041,7 +1033,6 @@ async def button_handler(
 
         return
 
-    # ChatGPT
     if data == "sub_chatgpt_menu":
         await q.message.edit_text(
             "اختر نوع ChatGPT:",
@@ -1083,7 +1074,6 @@ async def button_handler(
 
         return
 
-    # الاشتراكات الفردية
     if data.startswith("sub_"):
         code = data.replace("sub_", "")
 
@@ -1125,7 +1115,6 @@ async def button_handler(
 
         return
 
-    # اختيار الباقات
     if data.startswith("bundle_init_"):
         count = int(data.rsplit("_", 1)[1])
 
@@ -1225,7 +1214,6 @@ async def button_handler(
 
         return
 
-    # ملخص الطلب
     if data.startswith("pkg_"):
         sub_type, duration = parse_package(data, "pkg")
 
@@ -1292,7 +1280,6 @@ async def button_handler(
 
         return
 
-    # إتمام الشراء
     if data.startswith("buy_"):
         sub_type, duration = parse_package(data, "buy")
 
@@ -1327,7 +1314,6 @@ async def button_handler(
 
         return
 
-    # لوحة الإدارة المالية
     if data.startswith("fin_"):
         if not is_admin(user.id):
             await q.message.reply_text(
@@ -1449,7 +1435,6 @@ async def handle_photo(
 
     photo_id = update.message.photo[-1].file_id
 
-    # صورة مشكلة الحساب
     if context.user_data.get("waiting_for_issue_description"):
         context.user_data["waiting_for_issue_description"] = False
 
@@ -1469,7 +1454,6 @@ async def handle_photo(
 
         return
 
-    # صورة إيصال الدفع
     if context.user_data.get("waiting_for_receipt"):
         sub = context.user_data.get(
             "current_sub",
@@ -1552,7 +1536,6 @@ async def handle_photo(
         )
 
 
-# إضافة مخزون
 async def stock_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -1588,7 +1571,6 @@ async def stock_command(
         )
 
 
-# إغلاق الطلب وتسجيل التكلفة والربح
 async def complete_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -1647,7 +1629,6 @@ async def admin_help(
 
 
 def main():
-    # إنشاء جداول قاعدة البيانات عند التشغيل
     database.init_db()
 
     log.info("962ElStore PostgreSQL connected")
