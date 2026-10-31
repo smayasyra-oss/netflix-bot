@@ -1633,29 +1633,30 @@ def main():
         .build()
     )
 
-    app.add_handler(
+        app.add_handler(
         CommandHandler("start", start)
     )
 
     app.add_handler(
-        CommandHandler("رد", admin_reply)
+        CommandHandler("reply", admin_reply)
     )
 
     app.add_handler(
-        CommandHandler("ادمن", admin_panel)
+        CommandHandler("admin", admin_panel)
     )
 
     app.add_handler(
-        CommandHandler("مساعدة_الادمن", admin_help)
+        CommandHandler("helpadmin", admin_help)
     )
 
     app.add_handler(
-        CommandHandler("مخزون", stock_command)
+        CommandHandler("stock", stock_command)
     )
 
     app.add_handler(
-        CommandHandler("اكتمال", complete_command)
+        CommandHandler("complete", complete_command)
     )
+
 
     app.add_handler(
         MessageHandler(
