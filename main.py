@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import os
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
@@ -8,8 +9,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-# الإعدادات الأساسية
-TOKEN = "YOUR_BOT_TOKEN_HERE"  # ضع توكن البوت هنا
+# سحب التوكن أماناً من إعدادات البيئة (Environment Variables) في Render
+TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_IDS = [123456789]  # ضع آيدي الأدمز (أنت وحسام) هنا
 CHANNEL_USERNAME = "@El962Store"  # قناة المتجر
 
@@ -60,7 +61,6 @@ async def cmd_start(message: Message):
     await message.answer(welcome_text, reply_markup=main_menu_keyboard())
 
 # أمر الرد المباشر للإدارة على الزبائن عبر البوت
-# الاستخدام: /reply <user_id> <الرسالة أو الحساب>
 @router.message(Command("reply"))
 async def admin_reply_user(message: Message):
     if message.from_user.id not in ADMIN_IDS:
@@ -285,7 +285,7 @@ async def process_code_info(message: Message, state: FSMContext):
     admin_text = (
         "🔑 **طلب كود جديد!**\n\n"
         f"👤 **الزبون:** {user.full_name}\n"
-        f"🔗 **ربرط الحساب:** [اضغط هنا لمراسلة الزبون](tg://user?id={user.id})\n"
+        f"🔗 **رابط الحساب:** [اضغط هنا لمراسلة الزبون](tg://user?id={user.id})\n"
         f"🆔 **الآيدي:** `{user.id}`\n"
         f"📌 **نوع الكود:** {code_title}\n"
         f"📧 **المعلومات المرسلة:** `{message.text}`\n\n"
