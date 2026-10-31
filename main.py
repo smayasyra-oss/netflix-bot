@@ -8,10 +8,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.client.default import DefaultBotProperties
 
-# سحب التوكن أماناً من إعدادات البيئة (Environment Variables) في Render
+# سحب التوكن أماناً من إعدادات البيئة في Render
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_IDS = [123456789]  # ضع آيدي الأدمز (أنت وحسام) هنا
+ADMIN_IDS = [123456789]  # ضع آيدي الأدمز هنا
 CHANNEL_USERNAME = "@El962Store"  # قناة المتجر
 
 # بيانات الدفع عبر كليك
@@ -35,7 +36,7 @@ class CodeState(StatesGroup):
     waiting_for_code_info = State()
 
 # تهيئة البوت
-bot = Bot(token=TOKEN, parse_mode=ParseMode.MARKDOWN)
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 router = Router()
@@ -284,12 +285,11 @@ async def process_code_info(message: Message, state: FSMContext):
     
     admin_text = (
         "🔑 **طلب كود جديد!**\n\n"
-        f"👤 **الزبون:** {user.full_name}\n"
-        f"🔗 **رابط الحساب:** [اضغط هنا لمراسلة الزبون](tg://user?id={user.id})\n"
-        f"🆔 **الآيدي:** `{user.id}`\n"
         f"📌 **نوع الكود:** {code_title}\n"
         f"📧 **المعلومات المرسلة:** `{message.text}`\n\n"
-        f"💬 للرد عليه وإرسال الكود، استخدم الأمر:\n`/reply {user.id} [اكتب الكود هنا]`"
+        f"💬 للرد عليه وإرسال الكود، اضغط على الرابط التالي لمراسلته مباشرة:\n"
+        f"[مراسلة الزبون](tg://user?id={user.id})\n"
+        f"أو استخدم الأمر:\n`/reply {user.id} [اكتب الكود هنا]`"
     )
     
     for admin_id in ADMIN_IDS:
@@ -334,12 +334,11 @@ async def process_issue_description(message: Message, state: FSMContext):
     
     admin_text = (
         "🚨 **تذكرة مشكلة جديدة!**\n\n"
-        f"👤 **المرسل:** {user.full_name}\n"
-        f"🔗 **رابط الزبون:** [اضغط هنا لمراسلة الزبون](tg://user?id={user.id})\n"
-        f"🆔 **الآيدي:** `{user.id}`\n"
         f"📧 **الإيميل:** `{email}`\n"
         f"📋 **وصف المشكلة:** {message.text or message.caption or 'بدون نص'}\n\n"
-        f"💬 للرد وحل المشكلة، استخدم الأمر:\n`/reply {user.id} [الرد أو الحل]`"
+        f"💬 للرد وحل المشكلة، اضغط على الرابط التالي لمراسلته مباشرة:\n"
+        f"[مراسلة الزبون](tg://user?id={user.id})\n"
+        f"أو استخدم الأمر:\n`/reply {user.id} [الرد أو الحل]`"
     )
     
     for admin_id in ADMIN_IDS:
@@ -379,11 +378,10 @@ async def receive_receipt(message: Message, state: FSMContext):
     
     admin_text = (
         "💰 **طلب شراء جديد بانتظار التأكيد!**\n\n"
-        f"👤 **الزبون:** {user.full_name}\n"
-        f"🔗 **رابط الزبون:** [اضغط هنا لمراسلة الزبون](tg://user?id={user.id})\n"
-        f"🆔 **الآيدي:** `{user.id}`\n"
         f"📦 **الطلب:** `{order_info}`\n\n"
-        f"💬 لتسليم الحساب أو الرد عليه، استخدم الأمر:\n`/reply {user.id} [معلومات الحساب أو التأكيد]`"
+        f"💬 لتسليم الحساب، اضغط على الرابط التالي لمراسلته مباشرة:\n"
+        f"[مراسلة الزبون](tg://user?id={user.id})\n"
+        f"أو استخدم الأمر:\n`/reply {user.id} [معلومات الحساب أو التأكيد]`"
     )
     
     for admin_id in ADMIN_IDS:
