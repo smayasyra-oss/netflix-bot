@@ -492,7 +492,7 @@ async def admin_reply(
 
     if len(context.args) < 2:
         await update.message.reply_text(
-            "الاستخدام: /reply USER_ID نص الرسالة"
+            "الاستخدام: /رد USER_ID نص الرسالة"
         )
         return
 
@@ -609,7 +609,7 @@ async def handle_message(
 
             else:
                 await update.message.reply_text(
-                    "❌ صيغة الإدخال غير صحيحة. افتح /admin واتبع الصيغة الموضحة."
+                    "❌ صيغة الإدخال غير صحيحة. افتح /ادمن واتبع الصيغة الموضحة."
                 )
 
         except Exception as exc:
@@ -1388,7 +1388,7 @@ async def button_handler(
 
             await q.message.reply_text(
                 "لإضافة مخزون أرسل:\n"
-                "/stock اسم الصنف | الكمية | تكلفة الوحدة | مصدر الأموال"
+                "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | مصدر الأموال"
             )
 
         else:
@@ -1457,7 +1457,6 @@ async def handle_photo(
     if context.user_data.get("waiting_for_receipt"):
         sub = context.user_data.get("current_sub", "")
         
-        # التأكد من توفر السعر، وإلا يتم تعويض قيمة افتراضية لتجنب التعطل
         raw_price = context.user_data.get("price_value", "0")
         try:
             price = Decimal(str(raw_price))
@@ -1512,8 +1511,8 @@ async def handle_photo(
             f"السعر: {price} د.أ\n"
             f"الحالة: بانتظار الاستلام\n\n"
             f"بعد التحقق من الحوالة استخدم:\n"
-            f"/complete {order_id} COST INCOME_SOURCE COST_SOURCE\n"
-            f"مثال: /complete {order_id} 1.50 operating shared",
+            f"/اكتمال {order_id} التكلفة مصدر_الدخل مصدر_التكلفة\n"
+            f"مثال: /اكتمال {order_id} 0 operating shared",
             photo=photo_id,
             keyboard=InlineKeyboardMarkup([
                 [
@@ -1529,7 +1528,6 @@ async def handle_photo(
         await update.message.reply_text(
             "يرجى استخدام أزرار القائمة."
         )
-
 
 
 async def stock_command(
@@ -1556,14 +1554,14 @@ async def stock_command(
         )
 
         await update.message.reply_text(
-            "✅ تمت إضافة المخزون."
+            "✅ تمت إضافة المخزون بنجاح."
         )
 
     except Exception as exc:
         await update.message.reply_text(
-            "الصيغة الصحيحة:\n"
-            "/stock اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n\n"
-            f"{exc}"
+            "الصيغة الصحيحة لإضافة مخزون:\n"
+            "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n\n"
+            f"خطأ: {exc}"
         )
 
 
@@ -1576,10 +1574,10 @@ async def complete_command(
 
     if len(context.args) != 4:
         await update.message.reply_text(
-            "الصيغة:\n"
-            "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE\n\n"
+            "الصيغة الصحيحة لإغلاق الطلب:\n"
+            "/اكتمال رقم_الطلب التكلفة مصدر_الدخل مصدر_التكلفة\n\n"
             "مثال:\n"
-            "/complete 12 1.50 operating shared"
+            "/اكتمال 2 0 operating shared"
         )
         return
 
@@ -1598,12 +1596,12 @@ async def complete_command(
         )
 
         await update.message.reply_text(
-            "✅ تم إغلاق الطلب وتسجيل المبيعات والتكلفة."
+            "✅ تم إغلاق الطلب وتسجيل المبيعات والتكلفة بنجاح."
         )
 
     except Exception as exc:
         await update.message.reply_text(
-            f"❌ {exc}"
+            f"❌ خطأ: {exc}"
         )
 
 
@@ -1615,11 +1613,11 @@ async def admin_help(
         return
 
     await update.message.reply_text(
-        "أوامر الإدارة:\n"
-        "/admin - لوحة الإدارة\n"
-        "/reply USER_ID نص الرد\n"
-        "/stock اسم الصنف | الكمية | تكلفة الوحدة | owner/shared/operating\n"
-        "/complete ORDER_ID COST INCOME_SOURCE COST_SOURCE\n\n"
+        "أوامر الإدارة المتاحة:\n"
+        "/ادمن - لوحة الإدارة\n"
+        "/رد USER_ID نص الرد - للرد على الزبائن\n"
+        "/مخزون اسم الصنف | الكمية | تكلفة الوحدة | مصدر_الأموال - لإضافة بضاعة\n"
+        "/اكتمال رقم_الطلب التكلفة مصدر_الدخل مصدر_التكلفة - لإغلاق الطلب\n\n"
         "مهم: لا تغلق الطلب إلا بعد التحقق من الحوالة."
     )
 
@@ -1640,23 +1638,23 @@ def main():
     )
 
     app.add_handler(
-        CommandHandler("reply", admin_reply)
+        CommandHandler("رد", admin_reply)
     )
 
     app.add_handler(
-        CommandHandler("admin", admin_panel)
+        CommandHandler("ادمن", admin_panel)
     )
 
     app.add_handler(
-        CommandHandler("helpadmin", admin_help)
+        CommandHandler("مساعدة_الادمن", admin_help)
     )
 
     app.add_handler(
-        CommandHandler("stock", stock_command)
+        CommandHandler("مخزون", stock_command)
     )
 
     app.add_handler(
-        CommandHandler("complete", complete_command)
+        CommandHandler("اكتمال", complete_command)
     )
 
     app.add_handler(
