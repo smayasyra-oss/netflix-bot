@@ -21,7 +21,7 @@ def init_db():
         )
     """)
     
-    # جدول الطلبات البسيط والمحفوظ دائماً
+    # جدول الطلبات والتكاليف والمحافظ الكامل
     cur.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id SERIAL PRIMARY KEY,
@@ -32,6 +32,29 @@ def init_db():
             receipt_file_id TEXT,
             status TEXT DEFAULT 'pending',
             claimed_by BIGINT,
+            cost_price DECIMAL(10, 2),
+            income_source TEXT,
+            cost_source TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # جدول الأرصدة والمحافظ المالية
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS wallets (
+            name TEXT PRIMARY KEY,
+            balance DECIMAL(12, 2) DEFAULT 0.00
+        )
+    """)
+    
+    # جدول حركة الخزنة
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            type TEXT,
+            amount DECIMAL(10, 2),
+            source TEXT,
+            note TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -81,14 +104,14 @@ def claim_order(order_id, admin_id):
     conn.close()
     return affected > 0
 
-def complete_order(order_id, admin_id):
+def complete_order(order_id, admin_id, cost_price, income_source, cost_source):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         UPDATE orders 
-        SET status = 'completed', claimed_by = %s 
+        SET status = 'completed', claimed_by = %s, cost_price = %s, income_source = %s, cost_source = %s
         WHERE id = %s AND status != 'completed'
-    """, (admin_id, order_id))
+    """, (admin_id, cost_price, income_source, cost_source, order_id))
     affected = cur.rowcount
     conn.commit()
     cur.close()
