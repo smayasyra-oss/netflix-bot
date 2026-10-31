@@ -885,7 +885,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif sub_type == "tod":
             prices = {"1m": "6 دنانير", "3m": "9 دنانير"}
         elif sub_type == "snap_gift":
-            prices = {"3m": "11 دينار", "6m": "22 دينار", "1y": "25 دينار"}
+            prices = {"3m": "11 دينار", "6m": "19 دينار", "1y": "27 دينار"}
         elif sub_type == "snap_private":
             prices = {"1m": "3 دنانير", "1y": "16 دينار"}
         elif sub_type == "chatgpt_shared":
