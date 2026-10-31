@@ -1455,27 +1455,21 @@ async def handle_photo(
         return
 
     if context.user_data.get("waiting_for_receipt"):
-        sub = context.user_data.get(
-            "current_sub",
-            ""
-        )
-
-        price = Decimal(
-            context.user_data.get(
-                "price_value",
-                "0"
-            )
-        )
+        sub = context.user_data.get("current_sub", "")
+        
+        # التأكد من توفر السعر، وإلا يتم تعويض قيمة افتراضية لتجنب التعطل
+        raw_price = context.user_data.get("price_value", "0")
+        try:
+            price = Decimal(str(raw_price))
+        except (InvalidOperation, TypeError):
+            price = Decimal("0")
 
         name = context.user_data.get(
             "sub_name_text",
-            platform_name(sub)
+            platform_name(sub) if sub else "خدمة رقمية"
         )
 
-        dur_text = context.user_data.get(
-            "dur_text",
-            ""
-        )
+        dur_text = context.user_data.get("dur_text", "غير محددة")
 
         try:
             order_id = database.create_order(
@@ -1486,11 +1480,12 @@ async def handle_photo(
                 photo_id
             )
 
-        except Exception:
-            log.exception("Could not save order")
+        except Exception as exc:
+            log.exception("Could not save order due to DB error: %s", exc)
 
             await update.message.reply_text(
-                "تعذر تسجيل الطلب حالياً. حاول لاحقاً أو تواصل مع الدعم."
+                f"❌ تعذر تسجيل الطلب حالياً بسبب خطأ تقني: {exc}\n"
+                "يرجى محاولة اختيار الخدمة من جديد أو تواصل مع الدعم."
             )
 
             return
@@ -1534,6 +1529,7 @@ async def handle_photo(
         await update.message.reply_text(
             "يرجى استخدام أزرار القائمة."
         )
+
 
 
 async def stock_command(
