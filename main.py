@@ -105,6 +105,7 @@ async def individual_subscriptions(callback: CallbackQuery):
          InlineKeyboardButton(text="⚽ TOD", callback_data="sub_tod")],
         [InlineKeyboardButton(text="💬 ChatGPT Plus", callback_data="sub_chatgpt"),
          InlineKeyboardButton(text="👻 Snapchat+", callback_data="sub_snap")],
+        [InlineKeyboardButton(text="▶️ YouTube Premium", callback_data="sub_youtube")],
         [InlineKeyboardButton(text="⬅️ رجوع للقائمة الرئيسية", callback_data="main_menu")]
     ])
     await callback.message.edit_text("اختر المنصة المطلوبة للاشتراك الفردي:", reply_markup=keyboard)
@@ -133,6 +134,13 @@ async def handle_sub_selection(callback: CallbackQuery):
             ("إهداء (سنة) - 27 دينار", f"price_snap_gift_1y"),
             ("من داخل الحساب (شهر) - 3 دنانير", f"price_snap_acc_1m"),
             ("من داخل الحساب (سنة) - 16 دينار", f"price_snap_acc_1y"),
+        ]
+    elif sub_type == "youtube":
+        durations = [
+            ("الشهر - 3 دنانير أردني", "price_youtube_1m"),
+            ("3 أشهر - 7 دنانير أردني", "price_youtube_3m"),
+            ("6 أشهر - 14 دينار أردني", "price_youtube_6m"),
+            ("السنة - 19 دينار أردني", "price_youtube_1y"),
         ]
     
     keyboard_buttons = [[InlineKeyboardButton(text=text, callback_data=cb)] for text, cb in durations]
@@ -174,6 +182,15 @@ async def show_price_and_details(callback: CallbackQuery):
         details = "💬 **تفاصيل اشتراك ChatGPT Plus:**\n• يتم تزويدك بـ (إيميل وكلمة سر) مع 2FA.\n"
     elif sub_type == "snap":
         details = "👻 **تفاصيل اشتراك Snapchat+:**\n• متوفر بنظام الإهداء أو من داخل الحساب.\n"
+    elif sub_type == "youtube":
+        details = (
+            "▶️ **تفاصيل اشتراك YouTube Premium:**\n"
+            "• ودّع الإعلانات للأبد وبدون أي إزعاج[span_4](start_span)[span_4](end_span)!\n"
+            "• تشغيل الفيديوهات والموسيقى في الخلفية وفي الشاشة المقفلة[span_5](start_span)[span_5](end_span).\n"
+            "• تنزيل المحتوى لمشاهدته بدون إنترنت[span_6](start_span)[span_6](end_span).\n"
+            "• اشتراك مجاني في تطبيق YouTube Music[span_7](start_span)[span_7](end_span).\n"
+            "• **طريقة التفعيل:** دعوة رسمية ومضمونة 100% على إيميلك الشخصي[span_8](start_span)[span_8](end_span)!\n"
+        )
 
     long_term_warning = (
         "\n⚠️ **تنبيه هام:** الاشتراكات الطويلة (3 أشهر، 6 أشهر، والسنة) "
